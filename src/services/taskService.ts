@@ -1,6 +1,6 @@
 // src/api/tasks.ts
 import axios from "axios"
-import type { Task } from "../types/task"
+import type { Task } from "../types/index"
 
 export async function fetchTasks(): Promise<Task[]> {
     const response = await axios.get<Task[]>("http://localhost:8080/api/tasks")
