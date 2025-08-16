@@ -3,7 +3,7 @@
     <div class="sharpen-summary">
       <div class="sharpen-header">
         <h3>刃を研ぐ</h3>
-        <button @click="$emit('open-settings')" class="settings-btn-small">⚙️</button>
+        <i class="bi bi-gear settings-btn-small" @click="$emit('open-settings')"></i>
       </div>
       <div class="saw-areas">
         <div 
@@ -298,18 +298,15 @@ export default defineComponent({
 }
 
 .settings-btn-small {
-  background: none;
-  border: 1px solid #ccc;
   padding: 4px 6px;
-  border-radius: 3px;
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.2s;
+  color: #666;
 }
 
 .settings-btn-small:hover {
-  background-color: #e9ecef;
-  border-color: #999;
+  color: #333;
 }
 
 .saw-areas {
