@@ -116,7 +116,7 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 import type { Role, Task, SharpenTheSawArea } from '../types';
-import { createRole } from '../services/roleService';
+// import { createRole } from '../services/roleService'; // 一時停止: 役割はローカルストレージで管理
 
 export default defineComponent({
   name: 'LeftSidebar',
@@ -169,17 +169,11 @@ export default defineComponent({
         this.addRoleEnterCount++;
         if (this.addRoleEnterCount < 2) return;
         
-        try {
-          await createRole({
-            roleName: this.newRoleName.trim()
-          });
-          this.$emit('add-role', this.newRoleName.trim());
-          this.newRoleName = '';
-          this.showAddRole = false;
-          this.addRoleEnterCount = 0;
-        } catch (error) {
-          console.error('Failed to create role:', error);
-        }
+        // バックエンド呼び出しは一旦停止し、親(Dashboard)でローカルストレージ保存に委譲
+        this.$emit('add-role', this.newRoleName.trim());
+        this.newRoleName = '';
+        this.showAddRole = false;
+        this.addRoleEnterCount = 0;
       }
     },
     
