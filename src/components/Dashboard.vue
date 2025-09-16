@@ -86,26 +86,26 @@ export default defineComponent({
       ] as Role[],
       sharpenTheSawAreas: [
         {
-          id: '肉体',
-          name: '肉体',
+          id: 'physical',
+          name: 'Physical',
           icon: '💪',
           tasks: []
         },
         {
-          id: '知性',
-          name: '知性',
+          id: 'mental',
+          name: 'Mental',
           icon: '🧠',
           tasks: []
         },
         {
-          id: '社会・情緒',
-          name: '社会・情緒',
+          id: 'social-emotional',
+          name: 'Social/Emotional',
           icon: '❤️',
           tasks: []
         },
         {
-          id: '精神',
-          name: '精神',
+          id: 'spiritual',
+          name: 'Spiritual', 
           icon: '🙏',
           tasks: []
         }

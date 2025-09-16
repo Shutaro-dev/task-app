@@ -2,7 +2,7 @@
   <div class="left-sidebar">
     <div class="sharpen-summary">
       <div class="sharpen-header">
-        <h3>刃を研ぐ</h3>
+        <h3>Sharpen the Saw</h3>
         <i class="bi bi-gear settings-btn-small" @click="$emit('open-settings')"></i>
       </div>
       <div class="saw-areas">
@@ -33,8 +33,8 @@
     
     <div class="roles-section">
       <div class="section-header">
-        <h3>役割と目標</h3>
-        <button @click="showAddRole = true" class="add-btn">役割を追加</button>
+        <h3>Roles and Goals</h3>
+        <button @click="showAddRole = true" class="add-btn">Add Role</button>
       </div>
       
       <div v-if="showAddRole" class="add-role-form">
@@ -46,8 +46,8 @@
           ref="roleInput"
         />
         <div class="form-actions">
-          <button @click="handleAddRole" class="confirm-btn">追加</button>
-          <button @click="cancelAddRole" class="cancel-btn">キャンセル</button>
+          <button @click="handleAddRole" class="confirm-btn">Add</button>
+          <button @click="cancelAddRole" class="cancel-btn">Cancel</button>
         </div>
       </div>
       
@@ -116,6 +116,7 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 import type { Role, Task, SharpenTheSawArea } from '../types';
+import { createRole } from '../services/roleService';
 
 export default defineComponent({
   name: 'LeftSidebar',
@@ -163,14 +164,22 @@ export default defineComponent({
     }
   },
   methods: {
-    handleAddRole() {
+    async handleAddRole() {
       if (this.newRoleName.trim()) {
         this.addRoleEnterCount++;
         if (this.addRoleEnterCount < 2) return;
-        this.$emit('add-role', this.newRoleName.trim());
-        this.newRoleName = '';
-        this.showAddRole = false;
-        this.addRoleEnterCount = 0;
+        
+        try {
+          await createRole({
+            roleName: this.newRoleName.trim()
+          });
+          this.$emit('add-role', this.newRoleName.trim());
+          this.newRoleName = '';
+          this.showAddRole = false;
+          this.addRoleEnterCount = 0;
+        } catch (error) {
+          console.error('Failed to create role:', error);
+        }
       }
     },
     
@@ -334,7 +343,7 @@ export default defineComponent({
 .saw-icon {
   font-size: 16px;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .saw-content {
@@ -346,8 +355,6 @@ export default defineComponent({
   font-size: 12px;
   color: #333;
   font-weight: 600;
-  display: block;
-  margin-bottom: 4px;
 }
 
 .saw-tasks {
