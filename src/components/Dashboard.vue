@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard">
+  <div class="dashboard" ref="dashboardRoot">
     <LeftSidebar 
       :roles="roles"
       :sharpenTheSawAreas="sharpenTheSawAreas"
@@ -25,6 +25,7 @@
       @update-task="updateScheduledTask"
       @task-deleted="handleTaskDeleted"
       @add-copied-task="addCopiedTask"
+      @download-pdf="downloadPdf"
     />
     
     <RightSidebar 
@@ -38,11 +39,14 @@
       @close="showSettings = false"
       @update-areas="updateSharpenTheSawAreas"
     />
+    
   </div>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import type { Role, Task, SharpenTheSawArea, WeekData, ScheduledTask } from '../types';
 import LeftSidebar from './LeftSidebar.vue';
 import WeeklyCalendar from './WeeklyCalendar.vue';
@@ -361,6 +365,63 @@ export default defineComponent({
     addCopiedTask(task: ScheduledTask) {
       this.currentWeekData.scheduledTasks.push(task);
       this.saveData();
+    },
+
+    async downloadPdf() {
+      const root = this.$refs.dashboardRoot as HTMLElement | undefined;
+      if (!root) return;
+
+      // 現在のスタイル・スクロール位置を保存
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      const prevHeight = root.style.height;
+      const prevOverflow = root.style.overflow as string;
+
+      try {
+        // 要素全体が描画されるよう一時的に拡張
+        root.style.height = 'auto';
+        root.style.overflow = 'visible';
+
+        // 要素の実サイズでキャプチャ
+        const width = Math.max(root.scrollWidth, root.clientWidth);
+        const height = Math.max(root.scrollHeight, root.clientHeight);
+
+        const canvas = await html2canvas(root, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          width,
+          height,
+          windowWidth: width,
+          windowHeight: height,
+          scrollX: 0,
+          scrollY: 0
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+
+        // ページ向きをコンテンツのアスペクト比で自動選択
+        const isLandscape = canvas.width >= canvas.height;
+        const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'pt', format: 'a4' });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
+        const renderWidth = imgWidth * ratio;
+        const renderHeight = imgHeight * ratio;
+        const offsetX = (pageWidth - renderWidth) / 2;
+        const offsetY = (pageHeight - renderHeight) / 2;
+
+        pdf.addImage(imgData, 'PNG', offsetX, offsetY, renderWidth, renderHeight);
+        pdf.save('dashboard.pdf');
+      } finally {
+        // スタイル・スクロール位置を復元
+        root.style.height = prevHeight;
+        root.style.overflow = prevOverflow;
+        window.scrollTo(scrollX, scrollY);
+      }
     }
   },
   

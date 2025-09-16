@@ -8,6 +8,7 @@
         </div>
         <button @click="nextWeek" class="nav-btn">›</button>
       </div>
+      <button class="pdf-btn" @click.stop="emitDownload">PDF Download</button>
     </div>
     
     <div class="calendar-content">
@@ -130,7 +131,7 @@ export default defineComponent({
       required: true
     }
   },
-  emits: ['week-change', 'task-drop', 'update-day-notes', 'update-sleep-time', 'update-task', 'task-deleted', 'add-copied-task'],
+  emits: ['week-change', 'task-drop', 'update-day-notes', 'update-sleep-time', 'update-task', 'task-deleted', 'add-copied-task', 'download-pdf'],
   data() {
     return {
       // 5:00 AM to 24:00 (next day 0:00) - 20 hours total
@@ -423,6 +424,9 @@ export default defineComponent({
       // await deleteScheduledTask(Number(task.id)); // API呼び出しを削除
       this.$emit('task-deleted', task.id);
       this.showContextMenu = false;
+    },
+    emitDownload() {
+      this.$emit('download-pdf');
     }
   },
   
@@ -452,6 +456,7 @@ export default defineComponent({
   border-bottom: 1px solid #e0e0e0;
   background-color: #f8f9fa;
   flex-shrink: 0;
+  position: relative;
 }
 
 .week-navigation {
@@ -488,6 +493,23 @@ export default defineComponent({
   font-size: 16px;
   font-weight: 600;
   color: #333;
+}
+
+.pdf-btn {
+  position: absolute;
+  top: 20px;
+  right: 12px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: #333;
+  cursor: pointer;
+}
+
+.pdf-btn:hover {
+  background-color: #f0f0f0;
 }
 
 .calendar-content {
