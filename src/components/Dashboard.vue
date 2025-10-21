@@ -377,6 +377,28 @@ export default defineComponent({
       const prevHeight = root.style.height;
       const prevOverflow = root.style.overflow as string;
 
+      // textarea要素を一時的にdivに変換して改行を保持
+      const textareas = root.querySelectorAll('textarea');
+      const replacements: { original: HTMLTextAreaElement; replacement: HTMLDivElement }[] = [];
+      
+      textareas.forEach(textarea => {
+        const div = document.createElement('div');
+        div.style.cssText = textarea.style.cssText;
+        div.style.whiteSpace = 'pre-wrap';
+        div.style.overflowWrap = 'break-word';
+        div.style.overflow = 'hidden';
+        div.textContent = textarea.value;
+        
+        // 元の要素と置き換え要素を保存
+        replacements.push({
+          original: textarea,
+          replacement: div
+        });
+        
+        // textareaをdivに置き換え
+        textarea.parentNode!.replaceChild(div, textarea);
+      });
+
       try {
         // 要素全体が描画されるよう一時的に拡張
         root.style.height = 'auto';
@@ -417,6 +439,11 @@ export default defineComponent({
         pdf.addImage(imgData, 'PNG', offsetX, offsetY, renderWidth, renderHeight);
         pdf.save('dashboard.pdf');
       } finally {
+        // 元のtextarea要素を復元
+        replacements.forEach(({ original, replacement }) => {
+          replacement.parentNode!.replaceChild(original, replacement);
+        });
+        
         // スタイル・スクロール位置を復元
         root.style.height = prevHeight;
         root.style.overflow = prevOverflow;
