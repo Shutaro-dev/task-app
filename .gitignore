@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Frontend (Node.js)
+front-task-app/node_modules/
+front-task-app/dist/
+front-task-app/.env
+front-task-app/.env.local
+
+# Backend (Java/Gradle)
+task-app/.gradle/
+task-app/build/
+task-app/bin/
+task-app/*.log
+
+# Environment
+.env
+.env.local
+*.log
