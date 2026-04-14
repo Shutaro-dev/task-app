@@ -6,4 +6,5 @@ import lombok.Data;
 public class Role {
     private Integer roleId;
     private String roleName;
+    private Boolean isExpanded;
 }

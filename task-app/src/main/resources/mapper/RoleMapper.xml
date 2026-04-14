@@ -5,16 +5,17 @@
     <resultMap id="RoleResultMap" type="com.example.task_app.model.Role">
         <id column="role_id" property="roleId" />
         <result column="role_name" property="roleName" />
+        <result column="is_expanded" property="isExpanded" />
     </resultMap>
 
     <select id="selectAll" resultMap="RoleResultMap">
-        SELECT role_id, role_name
+        SELECT role_id, role_name, is_expanded
         FROM roles
         ORDER BY role_id
     </select>
 
     <select id="selectById" parameterType="java.lang.Integer" resultMap="RoleResultMap">
-        SELECT role_id, role_name
+        SELECT role_id, role_name, is_expanded
         FROM roles
         WHERE role_id = #{roleId}
     </select>
@@ -27,6 +28,12 @@
     <update id="update" parameterType="com.example.task_app.model.Role">
         UPDATE roles
         SET role_name = #{roleName}, updated_at = CURRENT_TIMESTAMP
+        WHERE role_id = #{roleId}
+    </update>
+
+    <update id="updateWithExpanded" parameterType="com.example.task_app.model.Role">
+        UPDATE roles
+        SET role_name = #{roleName}, is_expanded = #{isExpanded}, updated_at = CURRENT_TIMESTAMP
         WHERE role_id = #{roleId}
     </update>
 

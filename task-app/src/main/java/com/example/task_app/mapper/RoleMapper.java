@@ -15,5 +15,7 @@ public interface RoleMapper {
 
     int update(Role role);
 
+    int updateWithExpanded(Role role);
+
     int deleteById(Integer roleId);
 }

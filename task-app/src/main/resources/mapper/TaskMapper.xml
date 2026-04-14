@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.task_app.mapper.TaskMapper">
     <resultMap id="taskResultMap" type="com.example.task_app.model.Task">
-        <id property="id" column="id"/>
+        <id property="taskId" column="id"/>
         <result property="title" column="title"/>
         <result property="roleId" column="role_id"/>
         <result property="isPermanent" column="is_permanent"/>
@@ -16,14 +16,21 @@
     </insert>
 
     <select id="findAll" resultMap="taskResultMap">
-        SELECT id, title 
-        FROM tasks 
+        SELECT id, title, role_id, is_permanent, created_at, updated_at
+        FROM tasks
         ORDER BY id ASC
     </select>
 
     <select id="findById" resultMap="taskResultMap">
-        SELECT id, title
+        SELECT id, title, role_id, is_permanent, created_at, updated_at
         FROM tasks
         WHERE id = #{id}
+    </select>
+
+    <select id="findByRoleId" parameterType="java.lang.Integer" resultMap="taskResultMap">
+        SELECT id, title, role_id, is_permanent, created_at, updated_at
+        FROM tasks
+        WHERE role_id = #{roleId}
+        ORDER BY id ASC
     </select>
 </mapper> 

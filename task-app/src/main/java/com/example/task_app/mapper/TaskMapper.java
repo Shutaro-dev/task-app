@@ -13,4 +13,6 @@ public interface TaskMapper {
     List<Task> findAll();
 
     Task findById(Integer id);
+
+    List<Task> findByRoleId(Integer roleId);
 }
