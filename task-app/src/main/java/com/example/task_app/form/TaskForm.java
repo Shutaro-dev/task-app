@@ -12,5 +12,5 @@ public class TaskForm {
     @NotBlank
     private String title;
     @NotNull
-    private boolean isPermanent;
+    private Boolean isPermanent;
 }

@@ -22,7 +22,7 @@ public class TaskRestController {
     @PostMapping
     public ResponseEntity<Void> createTask(@RequestBody @Valid TaskForm taskForm) {
         TaskDto taskDto = new TaskDto(taskForm.getTaskId(), taskForm.getRoleId(), taskForm.getTitle(),
-                taskForm.isPermanent());
+                taskForm.getIsPermanent());
         taskService.createTask(taskDto);
         return ResponseEntity.ok().build();
     }

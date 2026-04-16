@@ -16,21 +16,18 @@ import org.springframework.context.annotation.Import;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * TaskServiceの統合テスト
- * 
- * このテストでは、実際のH2データベースと連携し、
- * サービス層の挙動を検証します。
- * 
- * TaskはRoleに依存するため、テストの前準備でRoleを作成します。
- * 
- * @MybatisTest: MyBatisのマッパーとデータベース接続をテストするためのアノテーション
- * @Import: テスト対象のServiceクラスをDIコンテナに登録
- */
 @MybatisTest
 @Import({TaskService.class, RoleService.class})
 class TaskServiceTest {
+    private static final String DEFAULT_ROLE_NAME = "TestRole";
+    private static final String SECOND_ROLE_NAME = "SecondRole";
+    private static final String TITLE_TEMP = "Temporary Task";
+    private static final String TITLE_PERMANENT = "Permanent Task";
+    private static final String TITLE_JA = "タスクのテスト";
+    private static final int MAX_TITLE_LENGTH = 255;
+    private static final int NON_EXISTING_ROLE_ID = 9999;
 
     @Autowired
     private TaskService taskService;
@@ -44,91 +41,66 @@ class TaskServiceTest {
     @Autowired
     private RoleMapper roleMapper;
 
-    private Integer testRoleId;
+    private Integer baseRoleId;
 
-    /**
-     * 各テストの前にデータベースをクリーンアップし、テスト用のRoleを作成
-     */
     @BeforeEach
     void setUp() {
-        // まずTasksを削除（外部キー制約のため先に削除）
-        List<Task> existingTasks = taskMapper.findAll();
-        // TaskMapperにdeleteメソッドがないため、直接削除できない
-        // ここではRoleを削除することでカスケード削除を利用
-
-        // Rolesを削除
         List<Role> existingRoles = roleMapper.selectAll();
         for (Role role : existingRoles) {
             roleMapper.deleteById(role.getRoleId());
         }
 
-        // テスト用のRoleを作成
-        RoleDto roleDto = new RoleDto(null, "TestRole");
-        roleService.createRole(roleDto);
-
-        // 作成されたRoleのIDを取得
-        List<Role> roles = roleMapper.selectAll();
-        testRoleId = roles.get(0).getRoleId();
+        roleService.createRole(new RoleDto(null, DEFAULT_ROLE_NAME));
+        baseRoleId = roleMapper.selectAll().getFirst().getRoleId();
     }
 
     @Test
-    @DisplayName("正常系: 新規タスクの作成が成功する")
-    void createTask_NewTask_Success() {
-        // Arrange: 新規タスクのDTO
-        TaskDto taskDto = new TaskDto(null, testRoleId, "Test Task", false);
-
-        // Act: サービスメソッドを実行
-        taskService.createTask(taskDto);
-
-        // Assert: データベースからタスクを取得して検証
-        List<Task> tasks = taskMapper.findAll();
-        assertThat(tasks).hasSize(1);
-        assertThat(tasks.get(0).getTitle()).isEqualTo("Test Task");
-    }
-
-    @Test
-    @DisplayName("正常系: 永続タスク（isPermanent=true）の作成が成功する")
-    void createTask_PermanentTask_Success() {
+    @DisplayName("normal01: isPermanent=falseのタスクを作成できる")
+    void createTask_normal01() {
         // Arrange
-        TaskDto taskDto = new TaskDto(null, testRoleId, "Permanent Task", true);
+        TaskDto createRequest = new TaskDto(null, baseRoleId, TITLE_TEMP, false);
 
         // Act
-        taskService.createTask(taskDto);
+        taskService.createTask(createRequest);
 
         // Assert
         List<Task> tasks = taskMapper.findAll();
         assertThat(tasks).hasSize(1);
-        assertThat(tasks.get(0).getTitle()).isEqualTo("Permanent Task");
-        assertThat(tasks.get(0).isPermanent()).isTrue();
+        Task created = taskMapper.findById(tasks.getFirst().getTaskId());
+        assertThat(created.getTitle()).isEqualTo(TITLE_TEMP);
+        assertThat(created.getRoleId()).isEqualTo(baseRoleId);
+        assertThat(created.isPermanent()).isFalse();
     }
 
     @Test
-    @DisplayName("正常系: 一時タスク（isPermanent=false）の作成が成功する")
-    void createTask_TemporaryTask_Success() {
+    @DisplayName("normal02: isPermanent=trueのタスクを作成できる")
+    void createTask_normal02() {
         // Arrange
-        TaskDto taskDto = new TaskDto(null, testRoleId, "Temporary Task", false);
+        TaskDto createRequest = new TaskDto(null, baseRoleId, TITLE_PERMANENT, true);
 
         // Act
-        taskService.createTask(taskDto);
+        taskService.createTask(createRequest);
 
         // Assert
         List<Task> tasks = taskMapper.findAll();
         assertThat(tasks).hasSize(1);
-        assertThat(tasks.get(0).getTitle()).isEqualTo("Temporary Task");
-        assertThat(tasks.get(0).isPermanent()).isFalse();
+        Task created = taskMapper.findById(tasks.getFirst().getTaskId());
+        assertThat(created.getTitle()).isEqualTo(TITLE_PERMANENT);
+        assertThat(created.isPermanent()).isTrue();
     }
 
     @Test
-    @DisplayName("正常系: 複数のタスクを作成できる")
-    void createTask_MultipleTasks_Success() {
-        // Arrange & Act
-        TaskDto taskDto1 = new TaskDto(null, testRoleId, "Task 1", false);
-        TaskDto taskDto2 = new TaskDto(null, testRoleId, "Task 2", true);
-        TaskDto taskDto3 = new TaskDto(null, testRoleId, "Task 3", false);
+    @DisplayName("normal03: 複数タスクを作成できる")
+    void createTask_normal03() {
+        // Arrange
+        TaskDto request1 = new TaskDto(null, baseRoleId, "Task 1", false);
+        TaskDto request2 = new TaskDto(null, baseRoleId, "Task 2", true);
+        TaskDto request3 = new TaskDto(null, baseRoleId, "Task 3", false);
 
-        taskService.createTask(taskDto1);
-        taskService.createTask(taskDto2);
-        taskService.createTask(taskDto3);
+        // Act
+        taskService.createTask(request1);
+        taskService.createTask(request2);
+        taskService.createTask(request3);
 
         // Assert
         List<Task> tasks = taskMapper.findAll();
@@ -138,79 +110,82 @@ class TaskServiceTest {
     }
 
     @Test
-    @DisplayName("正常系: 日本語のタスク名で作成できる")
-    void createTask_JapaneseTitle_Success() {
+    @DisplayName("normal04: 日本語タイトルで作成できる")
+    void createTask_normal04() {
         // Arrange
-        TaskDto taskDto = new TaskDto(null, testRoleId, "タスクのテスト", false);
+        TaskDto createRequest = new TaskDto(null, baseRoleId, TITLE_JA, false);
 
         // Act
-        taskService.createTask(taskDto);
+        taskService.createTask(createRequest);
 
         // Assert
         List<Task> tasks = taskMapper.findAll();
         assertThat(tasks).hasSize(1);
-        assertThat(tasks.get(0).getTitle()).isEqualTo("タスクのテスト");
+        assertThat(tasks.getFirst().getTitle()).isEqualTo(TITLE_JA);
     }
 
     @Test
-    @DisplayName("正常系: 長いタスク名で作成できる")
-    void createTask_LongTitle_Success() {
-        // Arrange: 255文字のタスク名
-        String longTitle = "T".repeat(255);
-        TaskDto taskDto = new TaskDto(null, testRoleId, longTitle, false);
+    @DisplayName("normal05: 最大長タイトルで作成できる")
+    void createTask_normal05() {
+        // Arrange
+        String maxLengthTitle = "T".repeat(MAX_TITLE_LENGTH);
+        TaskDto createRequest = new TaskDto(null, baseRoleId, maxLengthTitle, false);
 
         // Act
-        taskService.createTask(taskDto);
+        taskService.createTask(createRequest);
 
         // Assert
         List<Task> tasks = taskMapper.findAll();
         assertThat(tasks).hasSize(1);
-        assertThat(tasks.get(0).getTitle()).isEqualTo(longTitle);
+        assertThat(tasks.getFirst().getTitle()).isEqualTo(maxLengthTitle);
     }
 
     @Test
-    @DisplayName("正常系: createdAtとupdatedAtが設定される")
-    void createTask_TimestampsSet_Success() {
+    @DisplayName("normal06: 異なるroleIdに対してそれぞれ作成できる")
+    void createTask_normal06() {
         // Arrange
-        TaskDto taskDto = new TaskDto(null, testRoleId, "Task with timestamps", false);
-
-        // Act
-        taskService.createTask(taskDto);
-
-        // Assert: findByIdで詳細を取得して検証
-        List<Task> tasks = taskMapper.findAll();
-        assertThat(tasks).hasSize(1);
-        
-        Task createdTask = taskMapper.findById(tasks.get(0).getId());
-        // 注意: TaskMapper.xmlのfindByIdはcreated_at, updated_atを取得していないため、
-        // ここではタスクが作成されたことだけを確認
-        assertThat(createdTask).isNotNull();
-        assertThat(createdTask.getTitle()).isEqualTo("Task with timestamps");
-    }
-
-    @Test
-    @DisplayName("正常系: 異なるRoleに属するタスクを作成できる")
-    void createTask_DifferentRoles_Success() {
-        // Arrange: 2つ目のRoleを作成
-        RoleDto roleDto2 = new RoleDto(null, "SecondRole");
-        roleService.createRole(roleDto2);
-
-        List<Role> roles = roleMapper.selectAll();
-        Integer secondRoleId = roles.stream()
-                .filter(r -> r.getRoleName().equals("SecondRole"))
+        roleService.createRole(new RoleDto(null, SECOND_ROLE_NAME));
+        Integer secondRoleId = roleMapper.selectAll().stream()
+                .filter(role -> SECOND_ROLE_NAME.equals(role.getRoleName()))
                 .findFirst()
                 .map(Role::getRoleId)
                 .orElseThrow();
 
-        // Act: 異なるRoleにタスクを作成
-        TaskDto taskDto1 = new TaskDto(null, testRoleId, "Task for Role 1", false);
-        TaskDto taskDto2 = new TaskDto(null, secondRoleId, "Task for Role 2", false);
+        TaskDto requestForRole1 = new TaskDto(null, baseRoleId, "Task for Role 1", false);
+        TaskDto requestForRole2 = new TaskDto(null, secondRoleId, "Task for Role 2", false);
 
-        taskService.createTask(taskDto1);
-        taskService.createTask(taskDto2);
+        // Act
+        taskService.createTask(requestForRole1);
+        taskService.createTask(requestForRole2);
 
         // Assert
         List<Task> tasks = taskMapper.findAll();
         assertThat(tasks).hasSize(2);
+        assertThat(tasks).extracting(Task::getRoleId)
+                .containsExactlyInAnyOrder(baseRoleId, secondRoleId);
+    }
+
+    @Test
+    @DisplayName("error01: titleがnullのときDB制約違反で例外が発生する")
+    void createTask_error01() {
+        // Arrange
+        TaskDto invalidRequest = new TaskDto(null, baseRoleId, null, false);
+
+        // Act / Assert
+        assertThatThrownBy(() -> taskService.createTask(invalidRequest))
+                .isInstanceOf(Exception.class);
+        assertThat(taskMapper.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("error02: 存在しないroleIdのとき外部キー制約違反で例外が発生する")
+    void createTask_error02() {
+        // Arrange
+        TaskDto invalidRequest = new TaskDto(null, NON_EXISTING_ROLE_ID, TITLE_TEMP, false);
+
+        // Act / Assert
+        assertThatThrownBy(() -> taskService.createTask(invalidRequest))
+                .isInstanceOf(Exception.class);
+        assertThat(taskMapper.findAll()).isEmpty();
     }
 }
