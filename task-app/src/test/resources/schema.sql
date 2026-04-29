@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS roles (
     role_id SERIAL PRIMARY KEY,
     role_name VARCHAR(255) NOT NULL,
     is_expanded BOOLEAN DEFAULT true,
+    color VARCHAR(7) DEFAULT '#4a90d9',
+    sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -15,6 +17,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     title VARCHAR(255) NOT NULL,
     role_id INT NOT NULL,
     is_permanent BOOLEAN DEFAULT false,
+    sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE CASCADE

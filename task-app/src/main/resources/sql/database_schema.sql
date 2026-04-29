@@ -6,6 +6,8 @@ CREATE TABLE roles (
     role_id SERIAL PRIMARY KEY,
     role_name VARCHAR(255) NOT NULL,
     is_expanded BOOLEAN DEFAULT true,
+    color VARCHAR(7) DEFAULT '#4a90d9',
+    sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -16,8 +18,9 @@ DROP TABLE IF EXISTS tasks;
 CREATE TABLE tasks (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
-    role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    role_id INTEGER NOT NULL REFERENCES roles(role_id) ON DELETE CASCADE,
     is_permanent BOOLEAN DEFAULT false,
+    sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -87,9 +90,9 @@ INSERT INTO sharpen_the_saw_areas (id, name, icon) VALUES
 ('Mental', 'Mental', '🙏');
 
 -- サンプルのrolesデータ
-INSERT INTO roles (role_name, is_expanded) VALUES
-('Professional', true),
-('Family', true);
+INSERT INTO roles (role_name, is_expanded, color, sort_order) VALUES
+('Professional', true, '#4a90d9', 1),
+('Family', true, '#e67e22', 2);
 
 -- パフォーマンス向上のためのインデックス
 CREATE INDEX idx_tasks_role_id ON tasks(role_id);
