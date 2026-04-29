@@ -83,11 +83,11 @@
         <div class="sleep-inputs">
           <div class="sleep-input-group">
             <label>起床時間:</label>
-            <input type="time" v-model="wakeTime" />
+            <input type="time" v-model="wakeTime" step="1800" />
           </div>
           <div class="sleep-input-group">
             <label>就寝時間:</label>
-            <input type="time" v-model="bedTime" />
+            <input type="time" v-model="bedTime" step="1800" />
           </div>
         </div>
         <div class="dialog-actions">
@@ -265,8 +265,15 @@ export default defineComponent({
       this.showSleepDialog = false;
     },
     
+    snapTo30(time: string): string {
+      const [h, m] = time.split(':').map(Number);
+      const snapped = m < 15 ? 0 : m < 45 ? 30 : 0;
+      const hour = m >= 45 ? (h + 1) % 24 : h;
+      return `${hour.toString().padStart(2, '0')}:${snapped.toString().padStart(2, '0')}`;
+    },
+
     saveSleepTime() {
-      this.$emit('update-sleep-time', this.selectedDay, this.bedTime, this.wakeTime);
+      this.$emit('update-sleep-time', this.selectedDay, this.snapTo30(this.bedTime), this.snapTo30(this.wakeTime));
       this.closeSleepDialog();
     },
     
