@@ -12,67 +12,83 @@
     </div>
     
     <div class="calendar-content">
-      <div class="calendar-grid">
-        <div class="time-column">
-          <div class="time-header"></div>
-          <div 
-            v-for="hour in displayHours" 
+      <!-- 常に固定表示されるヘッダー行 -->
+      <div class="calendar-day-headers">
+        <div class="time-column-header"></div>
+        <div
+          v-for="(day, dayIndex) in days"
+          :key="dayIndex"
+          class="day-header"
+          @click="openSleepDialog(dayIndex)"
+        >
+          <div class="day-name">{{ day.name }}</div>
+          <div class="day-date">{{ formatDate(day.date) }}</div>
+          <div v-if="getSleepInfo(dayIndex)" class="sleep-indicator">
+            💤 {{ getSleepInfo(dayIndex) }}
+          </div>
+        </div>
+      </div>
+
+      <!-- スクロール可能なタイムライン本体 -->
+      <div class="calendar-timeline-body">
+        <div class="time-slots-column">
+          <div
+            v-for="hour in displayHours"
             :key="hour"
             class="time-slot"
           >
             {{ formatHour(hour) }}
           </div>
-          <div class="notes-time-header">Notes</div>
         </div>
-        
-        <div 
-          v-for="(day, dayIndex) in days" 
+
+        <div
+          v-for="(day, dayIndex) in days"
           :key="dayIndex"
-          class="day-column"
+          class="day-timeline"
+          @drop="handleDrop(dayIndex, $event)"
+          @dragover.prevent
         >
-          <div class="day-header" @click="openSleepDialog(dayIndex)">
-            <div class="day-name">{{ day.name }}</div>
-            <div class="day-date">{{ formatDate(day.date) }}</div>
-            <div v-if="getSleepInfo(dayIndex)" class="sleep-indicator">
-              💤 {{ getSleepInfo(dayIndex) }}
+          <div
+            v-for="hour in displayHours"
+            :key="hour"
+            class="hour-slot"
+            :data-hour="hour"
+            @contextmenu.prevent="onEmptySlotRightClick(dayIndex, hour, $event)"
+          ></div>
+
+          <div
+            v-for="task in getTasksForDay(dayIndex)"
+            :key="task.id"
+            class="scheduled-task"
+            :style="getTaskStyle(task)"
+            @mousedown="startTaskResize(task, $event)"
+            @click="selectTask(task)"
+            @contextmenu.prevent="onTaskRightClick(task, $event)"
+            :class="{ 'selected': selectedTask?.id === task.id }"
+          >
+            <div class="task-content">
+              {{ task.title }}
             </div>
+            <div class="resize-handle resize-handle-top" @mousedown.stop="startResize(task, 'top', $event)"></div>
+            <div class="resize-handle resize-handle-bottom" @mousedown.stop="startResize(task, 'bottom', $event)"></div>
           </div>
-          
-          <div class="day-timeline" @drop="handleDrop(dayIndex, $event)" @dragover.prevent>
-            <div 
-              v-for="hour in displayHours" 
-              :key="hour"
-              class="hour-slot"
-              :data-hour="hour"
-              @contextmenu.prevent="onEmptySlotRightClick(dayIndex, hour, $event)"
-            ></div>
-            
-            <div 
-              v-for="task in getTasksForDay(dayIndex)"
-              :key="task.id"
-              class="scheduled-task"
-              :style="getTaskStyle(task)"
-              @mousedown="startTaskResize(task, $event)"
-              @click="selectTask(task)"
-              @contextmenu.prevent="onTaskRightClick(task, $event)"
-              :class="{ 'selected': selectedTask?.id === task.id }"
-            >
-              <div class="task-content">
-                {{ task.title }}
-              </div>
-              <div class="resize-handle resize-handle-top" @mousedown.stop="startResize(task, 'top', $event)"></div>
-              <div class="resize-handle resize-handle-bottom" @mousedown.stop="startResize(task, 'bottom', $event)"></div>
-            </div>
-          </div>
-          
-          <div class="day-notes">
-            <textarea 
-              :value="getDayNotes(dayIndex)"
-              @input="updateNotes(dayIndex, $event)"
-              placeholder="Daily notes..."
-              class="notes-input"
-            ></textarea>
-          </div>
+        </div>
+      </div>
+
+      <!-- 常に固定表示されるノートセクション -->
+      <div class="calendar-notes-section">
+        <div class="notes-time-label">Notes</div>
+        <div
+          v-for="(day, dayIndex) in days"
+          :key="dayIndex"
+          class="day-notes"
+        >
+          <textarea
+            :value="getDayNotes(dayIndex)"
+            @input="updateNotes(dayIndex, $event)"
+            placeholder="Daily notes..."
+            class="notes-input"
+          ></textarea>
         </div>
       </div>
     </div>
@@ -527,67 +543,35 @@ export default defineComponent({
   min-height: 0;
 }
 
-.calendar-grid {
-  flex: 1;
+/* 固定ヘッダー行（スクロールしない） */
+.calendar-day-headers {
   display: flex;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.time-column {
-  width: 70px;
-  border-right: 1px solid #e0e0e0;
+  flex-shrink: 0;
+  border-bottom: 1px solid #e0e0e0;
   background-color: #f8f9fa;
+  scrollbar-gutter: stable;
+  overflow: hidden;
+}
+
+.time-column-header {
+  width: 70px;
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.time-header {
-  height: 50px;
-  border-bottom: 1px solid #e0e0e0;
-  flex-shrink: 0;
-}
-
-.time-slot {
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  color: #666;
-  border-bottom: 1px solid #e0e0e0;
-  flex-shrink: 0;
-}
-
-.notes-time-header {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  color: #666;
-  font-weight: 500;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.day-column {
-  flex: 1;
   border-right: 1px solid #e0e0e0;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
 }
 
 .day-header {
+  flex: 1;
   height: 50px;
-  padding: 4px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 4px 4px 2px;
+  border-right: 1px solid #e0e0e0;
   background-color: #f8f9fa;
   cursor: pointer;
   transition: background-color 0.2s;
   text-align: center;
-  flex-shrink: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .day-header:hover {
@@ -598,32 +582,87 @@ export default defineComponent({
   font-weight: 600;
   font-size: 11px;
   color: #333;
+  line-height: 1.1;
   margin-bottom: 1px;
 }
 
 .day-date {
   font-size: 14px;
   color: #666;
+  line-height: 1.1;
   margin-bottom: 1px;
 }
 
 .sleep-indicator {
   font-size: 8px;
   color: #666;
+  line-height: 1.1;
+}
+
+/* スクロール可能なタイムライン本体 */
+.calendar-timeline-body {
+  flex: 1;
+  display: flex;
+  overflow-y: auto;
+  min-height: 0;
+  align-items: flex-start;
+  scrollbar-gutter: stable;
+}
+
+.time-slots-column {
+  width: 70px;
+  flex-shrink: 0;
+  border-right: 1px solid #e0e0e0;
+  background-color: #f8f9fa;
+}
+
+.time-slot {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #666;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .day-timeline {
+  flex: 1;
   position: relative;
   overflow: hidden;
-  min-height: 0;
-  flex-shrink: 0;
-  height: 520px; /* 20 hours * 26px per hour */
+  height: 520px; /* 20時間 × 26px */
+  border-right: 1px solid #e0e0e0;
+  min-width: 0;
 }
 
 .hour-slot {
   height: 26px;
   border-bottom: 1px solid #e0e0e0;
   position: relative;
+}
+
+/* 固定ノートセクション（スクロールしない） */
+.calendar-notes-section {
+  display: flex;
+  flex-shrink: 0;
+  min-height: 80px;
+  border-top: 2px solid #e0e0e0;
+  background-color: white;
+  scrollbar-gutter: stable;
+  overflow: hidden;
+}
+
+.notes-time-label {
+  width: 70px;
+  border-right: 1px solid #e0e0e0;
+  background-color: #f8f9fa;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #666;
+  font-weight: 500;
 }
 
 .hour-slot:hover {
@@ -685,8 +724,9 @@ export default defineComponent({
 
 .day-notes {
   flex: 1;
-  border-bottom: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
   display: flex;
+  min-width: 0;
 }
 
 .notes-input {
