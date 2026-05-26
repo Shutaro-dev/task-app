@@ -175,16 +175,15 @@ class RoleServiceTest {
     }
 
     @Test
-    @DisplayName("error02: 存在しないroleIdで更新を試みてもデータは作成されない")
+    @DisplayName("error02: 存在しないroleIdで更新を試みるとNoSuchElementExceptionが発生しDBは変化しない")
     void createRole_error02() {
         // Arrange
         int nonExistingRoleId = 9999;
         RoleDto updateRequest = new RoleDto(nonExistingRoleId, ROLE_NAME_UPDATED);
 
-        // Act
-        roleService.createRole(updateRequest);
-
-        // Assert
+        // Act / Assert
+        assertThatThrownBy(() -> roleService.createRole(updateRequest))
+                .isInstanceOf(NoSuchElementException.class);
         assertThat(roleMapper.selectAll()).isEmpty();
     }
 
@@ -316,7 +315,7 @@ class RoleServiceTest {
     }
 
     @Test
-    @DisplayName("normal14: 更新後のRoleResponseに紐づくタスクが含まれる")
+    @DisplayName("normal14: 更新後のRoleResponseに紐づくタスクが含まれ、DBにも永続化される")
     void updateRole_normal04() {
         // Arrange
         roleService.createRole(new RoleDto(null, ROLE_NAME_ORIGINAL));
@@ -332,6 +331,9 @@ class RoleServiceTest {
         assertThat(result.getIsExpanded()).isTrue();
         assertThat(result.getTasks()).hasSize(1);
         assertThat(result.getTasks().getFirst().getTitle()).isEqualTo("Task A");
+        Role persisted = roleMapper.selectById(roleId);
+        assertThat(persisted.getRoleName()).isEqualTo(ROLE_NAME_UPDATED);
+        assertThat(persisted.getIsExpanded()).isTrue();
     }
 
     @Test

@@ -34,8 +34,12 @@ public class RoleRestController {
     @PostMapping
     public ResponseEntity<Void> createRole(@RequestBody @Valid RoleForm roleForm) {
         RoleDto roleDto = new RoleDto(roleForm.getRoleId(), roleForm.getRoleName());
-        roleService.createRole(roleDto);
-        return ResponseEntity.ok().build();
+        try {
+            roleService.createRole(roleDto);
+        } catch (NoSuchElementException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PutMapping("/{id}")

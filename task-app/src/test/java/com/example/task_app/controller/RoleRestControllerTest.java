@@ -50,7 +50,7 @@ class RoleRestControllerTest {
     // ─────────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("normal01: roleNameのみの登録リクエストで200を返し、Serviceに正しいDTOを渡す")
+    @DisplayName("normal01: roleNameのみの登録リクエストで201を返し、Serviceに正しいDTOを渡す")
     void createRole_normal01() throws Exception {
         // Arrange
         String requestBody = toJsonBody("roleName", ROLE_NAME_TEST);
@@ -61,7 +61,7 @@ class RoleRestControllerTest {
         mockMvc.perform(post(API_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         // Assert
         verify(roleService, times(1)).createRole(roleDtoCaptor.capture());
@@ -71,7 +71,7 @@ class RoleRestControllerTest {
     }
 
     @Test
-    @DisplayName("normal02: roleId付き登録リクエストで200を返し、Serviceに正しいDTOを渡す")
+    @DisplayName("normal02: roleId付き登録リクエストで201を返し、Serviceに正しいDTOを渡す")
     void createRole_normal02() throws Exception {
         // Arrange
         String requestBody = toJsonBody(
@@ -85,7 +85,7 @@ class RoleRestControllerTest {
         mockMvc.perform(post(API_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         // Assert
         verify(roleService, times(1)).createRole(roleDtoCaptor.capture());
@@ -133,6 +133,36 @@ class RoleRestControllerTest {
         mockMvc.perform(post(API_PATH)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
+
+        // Assert
+        verify(roleService, never()).createRole(any(RoleDto.class));
+    }
+
+    @Test
+    @DisplayName("error09: 存在しないroleIdを指定したとき404を返す")
+    void createRole_error04() throws Exception {
+        // Arrange
+        doThrow(new NoSuchElementException("Role not found: " + NON_EXISTING_ROLE_ID))
+                .when(roleService).createRole(any(RoleDto.class));
+        String requestBody = toJsonBody("roleId", NON_EXISTING_ROLE_ID, "roleName", ROLE_NAME_TEST);
+
+        // Act & Assert
+        mockMvc.perform(post(API_PATH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("error10: Content-Type未指定のとき415を返し、Serviceを呼ばない")
+    void createRole_error05() throws Exception {
+        // Arrange
+        String requestBody = toJsonBody("roleName", ROLE_NAME_TEST);
+
+        // Act
+        mockMvc.perform(post(API_PATH)
+                        .content(requestBody))
+                .andExpect(status().isUnsupportedMediaType());
 
         // Assert
         verify(roleService, never()).createRole(any(RoleDto.class));
@@ -288,6 +318,21 @@ class RoleRestControllerTest {
         mockMvc.perform(put(API_PATH + "/" + EXISTING_ROLE_ID)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
+
+        // Assert
+        verify(roleService, never()).updateRole(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("error11: Content-Type未指定のとき415を返し、Serviceを呼ばない")
+    void updateRole_error05() throws Exception {
+        // Arrange
+        String requestBody = toJsonBody("roleName", ROLE_NAME_UPDATED, "isExpanded", true);
+
+        // Act
+        mockMvc.perform(put(API_PATH + "/" + EXISTING_ROLE_ID)
+                        .content(requestBody))
+                .andExpect(status().isUnsupportedMediaType());
 
         // Assert
         verify(roleService, never()).updateRole(any(), any(), any());

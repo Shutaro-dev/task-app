@@ -10,7 +10,7 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <insert id="insert" parameterType="com.example.task_app.model.Task">
+    <insert id="insert" parameterType="com.example.task_app.model.Task" useGeneratedKeys="true" keyProperty="taskId">
         INSERT INTO tasks (title, role_id, is_permanent, created_at, updated_at)
         VALUES (#{title}, #{roleId}, #{isPermanent}, #{createdAt}, #{updatedAt})
     </insert>
@@ -33,4 +33,15 @@
         WHERE role_id = #{roleId}
         ORDER BY id ASC
     </select>
+
+    <update id="update" parameterType="com.example.task_app.model.Task">
+        UPDATE tasks
+        SET title = #{title}, is_permanent = #{isPermanent}, updated_at = #{updatedAt}
+        WHERE id = #{taskId}
+    </update>
+
+    <delete id="deleteById" parameterType="java.lang.Integer">
+        DELETE FROM tasks
+        WHERE id = #{id}
+    </delete>
 </mapper> 

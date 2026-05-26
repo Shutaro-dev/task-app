@@ -15,4 +15,8 @@ public interface TaskMapper {
     Task findById(Integer id);
 
     List<Task> findByRoleId(Integer roleId);
+
+    void update(Task task);
+
+    void deleteById(Integer id);
 }

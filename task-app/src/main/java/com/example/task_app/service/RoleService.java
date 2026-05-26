@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
+
 @Service
 public class RoleService {
 
@@ -31,6 +32,9 @@ public class RoleService {
         role.setRoleName(roleDto.getRoleName());
 
         if (role.getRoleId() != null) {
+            if (roleMapper.selectById(role.getRoleId()) == null) {
+                throw new NoSuchElementException("Role not found: " + role.getRoleId());
+            }
             roleMapper.update(role);
         } else {
             roleMapper.insert(role);
