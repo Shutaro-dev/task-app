@@ -7,4 +7,6 @@ public class Role {
     private Integer roleId;
     private String roleName;
     private Boolean isExpanded;
+    private String color;
+    private Integer sortOrder;
 }

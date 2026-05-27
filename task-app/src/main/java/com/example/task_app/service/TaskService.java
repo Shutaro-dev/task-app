@@ -3,6 +3,7 @@ package com.example.task_app.service;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.example.task_app.dto.TaskDto;
+import com.example.task_app.form.ReorderItem;
 import com.example.task_app.model.Task;
 import com.example.task_app.mapper.TaskMapper;
 import com.example.task_app.response.TaskResponse;
@@ -48,6 +49,10 @@ public class TaskService {
         existing.setUpdatedAt(LocalDateTime.now());
         taskMapper.update(existing);
         return new TaskResponse(existing.getTaskId(), existing.getRoleId(), existing.getTitle(), existing.isPermanent());
+    }
+
+    public void reorderTasks(List<ReorderItem> items) {
+        items.forEach(item -> taskMapper.updateSortOrder(item.getId(), item.getSortOrder()));
     }
 
     public void deleteTask(Integer id) {

@@ -1,16 +1,11 @@
-// src/services/roleService.ts
-// import axios from "axios" // 一時停止: ロールはローカルストレージで管理
+import axios from 'axios'
 
-export interface RoleData {
-    roleId?: number
-    roleName: string
+const BASE = 'http://localhost:8080/api/roles'
+
+export async function updateRoleColor(id: string, color: string): Promise<void> {
+  await axios.put(`${BASE}/${id}`, { color })
 }
 
-// export async function createRole(roleData: RoleData): Promise<void> {
-//     await axios.post("http://localhost:8080/api/roles", roleData)
-// }
-
-// export async function fetchRoles(): Promise<RoleData[]> {
-//     const response = await axios.get<RoleData[]>("http://localhost:8080/api/roles")
-//     return response.data
-// }
+export async function reorderRoles(items: { id: number; sortOrder: number }[]): Promise<void> {
+  await axios.put(`${BASE}/reorder`, items)
+}

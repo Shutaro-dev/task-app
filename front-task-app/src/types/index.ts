@@ -10,6 +10,7 @@ export interface Role {
     name: string;
     tasks: Task[];
     isExpanded: boolean;
+    color?: string;
     showAddTask?: boolean;
 }
 

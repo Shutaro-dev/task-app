@@ -8,4 +8,5 @@ public class RoleForm {
     private Integer roleId;
     @NotBlank
     private String roleName;
+    private String color;
 }

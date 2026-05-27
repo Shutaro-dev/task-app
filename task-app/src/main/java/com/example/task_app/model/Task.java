@@ -9,6 +9,7 @@ public class Task {
     private Integer roleId;
     private String title;
     private boolean isPermanent;
+    private Integer sortOrder;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 } 

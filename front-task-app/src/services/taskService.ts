@@ -1,12 +1,15 @@
-// src/api/tasks.ts
-import axios from "axios"
-import type { Task } from "../types/index"
+import axios from 'axios'
 
-export async function fetchTasks(): Promise<Task[]> {
-    const response = await axios.get<Task[]>("http://localhost:8080/api/tasks")
-    return response.data
+const BASE = 'http://localhost:8080/api/tasks'
+
+export async function updateTaskTitle(id: string, title: string): Promise<void> {
+  await axios.put(`${BASE}/${id}`, { title })
 }
 
-export async function deleteScheduledTask(id: number): Promise<void> {
-    await axios.delete(`http://localhost:8080/api/scheduled-tasks/${id}`)
+export async function toggleTaskPermanent(id: string, isPermanent: boolean): Promise<void> {
+  await axios.put(`${BASE}/${id}`, { isPermanent })
+}
+
+export async function reorderTasks(items: { id: number; sortOrder: number }[]): Promise<void> {
+  await axios.put(`${BASE}/reorder`, items)
 }

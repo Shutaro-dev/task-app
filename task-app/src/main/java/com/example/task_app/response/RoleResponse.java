@@ -11,5 +11,6 @@ public class RoleResponse {
     private Integer roleId;
     private String roleName;
     private Boolean isExpanded;
+    private String color;
     private List<TaskResponse> tasks;
 }

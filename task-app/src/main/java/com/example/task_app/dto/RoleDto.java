@@ -8,4 +8,5 @@ import lombok.Getter;
 public class RoleDto {
     private Integer roleId;
     private String roleName;
+    private String color;
 }

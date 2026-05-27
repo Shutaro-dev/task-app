@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 import jakarta.validation.Valid;
+import com.example.task_app.form.ReorderItem;
 import com.example.task_app.form.TaskForm;
 import com.example.task_app.form.TaskUpdateForm;
 import com.example.task_app.service.TaskService;
@@ -37,6 +38,12 @@ public class TaskRestController {
                 taskForm.getIsPermanent());
         taskService.createTask(taskDto);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PutMapping("/reorder")
+    public ResponseEntity<Void> reorderTasks(@RequestBody List<ReorderItem> items) {
+        taskService.reorderTasks(items);
+        return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}")

@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard" ref="dashboardRoot">
-    <LeftSidebar 
+    <LeftSidebar
       :roles="roles"
       :sharpenTheSawAreas="sharpenTheSawAreas"
       :temporaryTasks="currentWeekData.temporaryTasks || []"
@@ -12,12 +12,18 @@
       @delete-role="deleteRole"
       @update-role-name="updateRoleName"
       @delete-task="deleteTask"
+      @update-role-color="updateRoleColor"
+      @update-task-title="updateTaskTitle"
+      @reorder-tasks="reorderTasks"
+      @toggle-task-permanent="toggleTaskPermanent"
+      @reorder-roles="reorderRoles"
     />
-    
-    <WeeklyCalendar 
+
+    <WeeklyCalendar
       :current-week="currentWeek"
       :scheduled-tasks="currentWeekData.scheduledTasks"
       :day-notes="currentWeekData.dayNotes"
+      :role-colors="roleColorMap"
       @week-change="changeWeek"
       @task-drop="handleTaskDrop"
       @update-day-notes="updateDayNotes"
@@ -54,6 +60,7 @@ import RightSidebar from './RightSidebar.vue';
 import SharpenTheSawSettings from './SharpenTheSawSettings.vue';
 
 const STORAGE_KEY = 'fourth-gen-time-management';
+const ROLE_COLORS = ['#4a90d9', '#e67e22', '#27ae60', '#8e44ad', '#e74c3c', '#16a085'];
 
 export default defineComponent({
   name: 'Dashboard',
@@ -118,6 +125,11 @@ export default defineComponent({
     };
   },
   computed: {
+    roleColorMap(): Record<string, string> {
+      const map: Record<string, string> = {};
+      this.roles.forEach(r => { map[r.id] = r.color || '#4a90d9'; });
+      return map;
+    },
     currentWeekData(): WeekData {
       const weekKey = this.getWeekKey(this.currentWeek);
       if (!this.weekData.has(weekKey)) {
@@ -160,9 +172,10 @@ export default defineComponent({
         id: Date.now().toString(),
         name,
         tasks: [],
-        isExpanded: true
+        isExpanded: true,
+        color: ROLE_COLORS[this.roles.length % ROLE_COLORS.length]
       };
-      this.roles.push(newRole); // 末尾に追加
+      this.roles.push(newRole);
       this.saveData();
     },
     
@@ -284,6 +297,65 @@ export default defineComponent({
         this.saveData();
       }
     },
+
+    updateRoleColor(roleId: string, color: string) {
+      const role = this.roles.find(r => r.id === roleId);
+      if (role) {
+        role.color = color;
+        this.saveData();
+      }
+    },
+
+    updateTaskTitle(roleId: string, taskId: string, newTitle: string) {
+      const role = this.roles.find(r => r.id === roleId);
+      if (role) {
+        const task = role.tasks.find(t => t.id === taskId);
+        if (task) { task.title = newTitle; this.saveData(); return; }
+      }
+      const tempTask = this.currentWeekData.temporaryTasks?.find(t => t.id === taskId);
+      if (tempTask) { tempTask.title = newTitle; this.saveData(); }
+    },
+
+    reorderTasks(roleId: string, reorderedTasks: Task[]) {
+      const role = this.roles.find(r => r.id === roleId);
+      if (role) {
+        role.tasks = reorderedTasks.filter(t => t.isPermanent);
+      }
+      if (this.currentWeekData.temporaryTasks) {
+        const tempForRole = reorderedTasks.filter(t => !t.isPermanent && t.roleId === roleId);
+        const otherTemp = this.currentWeekData.temporaryTasks.filter(t => t.roleId !== roleId);
+        this.currentWeekData.temporaryTasks = [...otherTemp, ...tempForRole];
+      }
+      this.saveData();
+    },
+
+    toggleTaskPermanent(roleId: string, taskId: string, currentlyPermanent: boolean) {
+      if (currentlyPermanent) {
+        const role = this.roles.find(r => r.id === roleId);
+        if (!role) return;
+        const idx = role.tasks.findIndex(t => t.id === taskId);
+        if (idx === -1) return;
+        const [task] = role.tasks.splice(idx, 1);
+        task.isPermanent = false;
+        if (!this.currentWeekData.temporaryTasks) this.currentWeekData.temporaryTasks = [];
+        this.currentWeekData.temporaryTasks.push(task);
+      } else {
+        const tempIdx = this.currentWeekData.temporaryTasks?.findIndex(t => t.id === taskId) ?? -1;
+        if (tempIdx === -1) return;
+        const [task] = this.currentWeekData.temporaryTasks!.splice(tempIdx, 1);
+        task.isPermanent = true;
+        const role = this.roles.find(r => r.id === roleId);
+        if (role) role.tasks.push(task);
+      }
+      this.saveData();
+    },
+
+    reorderRoles(newRoles: Role[]) {
+      // newRoles は LeftSidebar の roleList 由来で merged tasks（permanent + temporary）を含む。
+      // this.roles（permanent タスクのみ）を元に順序だけ入れ替えることで二重追加を防ぐ。
+      this.roles = newRoles.map(r => this.roles.find(existing => existing.id === r.id) ?? r);
+      this.saveData();
+    },
     
     saveData() {
       try {
@@ -316,7 +388,15 @@ export default defineComponent({
           }
           
           if (parsed.roles) {
-            this.roles = parsed.roles;
+            this.roles = parsed.roles.map((r: any) => {
+              const seen = new Set<string>();
+              const tasks = (r.tasks ?? []).filter((t: any) => {
+                if (!t.isPermanent || seen.has(t.id)) return false;
+                seen.add(t.id);
+                return true;
+              });
+              return { ...r, tasks };
+            });
           }
           
           if (parsed.sharpenTheSawAreas) {
@@ -454,6 +534,7 @@ export default defineComponent({
   
   mounted() {
     this.loadData();
+    this.saveData(); // loadData のクリーンアップ結果を即座に永続化
   }
 });
 </script>

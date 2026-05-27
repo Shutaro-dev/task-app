@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 import jakarta.validation.Valid;
+import com.example.task_app.form.ReorderItem;
 import com.example.task_app.form.RoleForm;
 import com.example.task_app.form.RoleUpdateForm;
 import com.example.task_app.service.RoleService;
@@ -33,7 +34,7 @@ public class RoleRestController {
 
     @PostMapping
     public ResponseEntity<Void> createRole(@RequestBody @Valid RoleForm roleForm) {
-        RoleDto roleDto = new RoleDto(roleForm.getRoleId(), roleForm.getRoleName());
+        RoleDto roleDto = new RoleDto(roleForm.getRoleId(), roleForm.getRoleName(), roleForm.getColor());
         try {
             roleService.createRole(roleDto);
         } catch (NoSuchElementException e) {
@@ -42,12 +43,18 @@ public class RoleRestController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    @PutMapping("/reorder")
+    public ResponseEntity<Void> reorderRoles(@RequestBody List<ReorderItem> items) {
+        roleService.reorderRoles(items);
+        return ResponseEntity.ok().build();
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<RoleResponse> updateRole(
             @PathVariable Integer id,
             @RequestBody @Valid RoleUpdateForm form) {
         try {
-            RoleResponse response = roleService.updateRole(id, form.getRoleName(), form.getIsExpanded());
+            RoleResponse response = roleService.updateRole(id, form.getRoleName(), form.getIsExpanded(), form.getColor());
             return ResponseEntity.ok(response);
         } catch (NoSuchElementException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());

@@ -16,13 +16,13 @@
       <div class="calendar-day-headers">
         <div class="time-column-header"></div>
         <div
-          v-for="(day, dayIndex) in days"
+          v-for="(_day, dayIndex) in days"
           :key="dayIndex"
           class="day-header"
           @click="openSleepDialog(dayIndex)"
         >
-          <div class="day-name">{{ day.name }}</div>
-          <div class="day-date">{{ formatDate(day.date) }}</div>
+          <div class="day-name">{{ _day.name }}</div>
+          <div class="day-date">{{ formatDate(_day.date) }}</div>
           <div v-if="getSleepInfo(dayIndex)" class="sleep-indicator">
             💤 {{ getSleepInfo(dayIndex) }}
           </div>
@@ -42,7 +42,7 @@
         </div>
 
         <div
-          v-for="(day, dayIndex) in days"
+          v-for="(_day, dayIndex) in days"
           :key="dayIndex"
           class="day-timeline"
           @drop="handleDrop(dayIndex, $event)"
@@ -79,7 +79,7 @@
       <div class="calendar-notes-section">
         <div class="notes-time-label">Notes</div>
         <div
-          v-for="(day, dayIndex) in days"
+          v-for="(_day, dayIndex) in days"
           :key="dayIndex"
           class="day-notes"
         >
@@ -145,6 +145,10 @@ export default defineComponent({
     dayNotes: {
       type: Array as PropType<DayNotes[]>,
       required: true
+    },
+    roleColors: {
+      type: Object as PropType<Record<string, string>>,
+      default: () => ({})
     }
   },
   emits: ['week-change', 'task-drop', 'update-day-notes', 'update-sleep-time', 'update-task', 'task-deleted', 'add-copied-task', 'download-pdf'],
@@ -240,21 +244,30 @@ export default defineComponent({
     
     getTaskStyle(task: ScheduledTask): import('vue').StyleValue {
       const [hours, minutes] = task.startTime.split(':').map(Number);
-      
-      // Convert to display time (5 AM = 0%, 24:00 = 100%)
-      const displayStartHour = hours === 0 ? 24 : hours; // Handle 0:00 as 24:00
+
+      const displayStartHour = hours === 0 ? 24 : hours;
       const displayStartMinutes = (displayStartHour - 5) * 60 + minutes;
-      const totalDisplayMinutes = this.displayHours.length * 60; // 20 hours * 60 minutes
-      
+      const totalDisplayMinutes = this.displayHours.length * 60;
+
       const top = (displayStartMinutes / totalDisplayMinutes) * 100;
       const height = (task.duration / totalDisplayMinutes) * 100;
-      
+
+      const bg = this.roleColors[task.roleId] || '#4a90d9';
       return {
         top: `${Math.max(0, Math.min(100, top))}%`,
         height: `${Math.max(1, Math.min(100 - top, height))}%`,
         left: '2px',
-        right: '2px'
+        right: '2px',
+        backgroundColor: bg,
+        borderColor: this.darkenColor(bg)
       } as import('vue').StyleValue;
+    },
+
+    darkenColor(hex: string): string {
+      const r = Math.max(0, parseInt(hex.slice(1, 3), 16) - 40);
+      const g = Math.max(0, parseInt(hex.slice(3, 5), 16) - 40);
+      const b = Math.max(0, parseInt(hex.slice(5, 7), 16) - 40);
+      return `rgb(${r},${g},${b})`;
     },
     
     getDayNotes(dayIndex: number): string {
@@ -671,7 +684,6 @@ export default defineComponent({
 
 .scheduled-task {
   position: absolute;
-  background-color: #007bff;
   color: white;
   border-radius: 3px;
   padding: 2px 4px;
@@ -679,7 +691,7 @@ export default defineComponent({
   font-weight: 500;
   overflow: hidden;
   cursor: move;
-  border: 1px solid #0056b3;
+  border: 1px solid transparent;
   user-select: none;
   transition: box-shadow 0.2s;
 }
