@@ -1,5 +1,5 @@
 <template>
-  <div class="weekly-calendar">
+  <div class="weekly-calendar" :class="{ 'is-dragging-task': isDragging }">
     <div class="calendar-header">
       <div class="week-navigation">
         <button @click="previousWeek" class="nav-btn">‹</button>
@@ -99,11 +99,11 @@
         <div class="sleep-inputs">
           <div class="sleep-input-group">
             <label>起床時間:</label>
-            <input type="time" v-model="wakeTime" step="1800" />
+            <input type="time" v-model="wakeTime" step="1800" @keyup.enter="saveSleepTime" />
           </div>
           <div class="sleep-input-group">
             <label>就寝時間:</label>
-            <input type="time" v-model="bedTime" step="1800" />
+            <input type="time" v-model="bedTime" step="1800" @keyup.enter="saveSleepTime" />
           </div>
         </div>
         <div class="dialog-actions">
@@ -690,10 +690,15 @@ export default defineComponent({
   font-size: 9px;
   font-weight: 500;
   overflow: hidden;
-  cursor: move;
+  cursor: grab;
   border: 1px solid transparent;
   user-select: none;
   transition: box-shadow 0.2s;
+}
+
+.is-dragging-task,
+.is-dragging-task * {
+  cursor: grabbing !important;
 }
 
 .scheduled-task:hover {

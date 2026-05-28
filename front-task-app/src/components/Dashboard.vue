@@ -79,7 +79,7 @@ export default defineComponent({
         {
           id: '1',
           name: 'Professional',
-          isExpanded: true,
+          isExpanded: false,
           tasks: [
             { id: 't1', title: 'Review quarterly goals', roleId: '1', isPermanent: true },
             { id: 't2', title: 'Team meeting preparation', roleId: '1', isPermanent: false }
@@ -88,7 +88,7 @@ export default defineComponent({
         {
           id: '2',
           name: 'Family',
-          isExpanded: true,
+          isExpanded: false,
           tasks: [
             { id: 't3', title: 'Quality time with children', roleId: '2', isPermanent: true },
             { id: 't4', title: 'Plan weekend activities', roleId: '2', isPermanent: false }
@@ -104,7 +104,7 @@ export default defineComponent({
         },
         {
           id: 'mental',
-          name: 'Mental',
+          name: 'Intellectual',
           icon: '🧠',
           tasks: []
         },
@@ -172,7 +172,7 @@ export default defineComponent({
         id: Date.now().toString(),
         name,
         tasks: [],
-        isExpanded: true,
+        isExpanded: false,
         color: ROLE_COLORS[this.roles.length % ROLE_COLORS.length]
       };
       this.roles.push(newRole);

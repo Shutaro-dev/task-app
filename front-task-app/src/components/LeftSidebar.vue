@@ -28,19 +28,21 @@
     <div class="roles-section">
       <div class="section-header">
         <h3>Roles and Goals</h3>
-        <button @click="showAddRole = true" class="add-btn">Add Role</button>
+        <button @click="openAddRole" class="add-btn">Add Role</button>
       </div>
 
       <div v-if="showAddRole" class="add-role-form">
         <input
           v-model="newRoleName"
-          @keyup.enter="handleAddRole"
+          @keyup.enter="onRoleInputEnter"
+          @compositionstart="isComposing = true"
+          @compositionend="isComposing = false"
           placeholder="Role name"
           class="role-input"
           ref="roleInput"
         />
         <div class="form-actions">
-          <button @click="handleAddRole" class="confirm-btn">Add</button>
+          <button @click="submitAddRole" class="confirm-btn">Add</button>
           <button @click="cancelAddRole" class="cancel-btn">Cancel</button>
         </div>
       </div>
@@ -230,6 +232,8 @@ export default defineComponent({
       addRoleEnterCount:  0,
       editRoleEnterCount: 0,
       addTaskEnterCount:  0,
+      // IME composition state
+      isComposing:        false,
       // カラーピッカー
       colorPickerOpenId:  null as string | null,
       // ── SortableJS ドラッグ状態 ──────────────────────
@@ -279,13 +283,25 @@ export default defineComponent({
     },
 
     // ── ロール追加 ──────────────────────────────────────
-    async handleAddRole() {
-      if (!this.newRoleName.trim()) return;
+    openAddRole() {
+      this.newRoleName = '';
+      this.addRoleEnterCount = 0;
+      this.showAddRole = true;
+      this.$nextTick(() => {
+        (this.$refs.roleInput as HTMLInputElement | null)?.focus();
+      });
+    },
+    onRoleInputEnter() {
+      if (this.isComposing) return;
       if (++this.addRoleEnterCount < 2) return;
+      this.submitAddRole();
+    },
+    submitAddRole() {
+      if (!this.newRoleName.trim()) return;
       this.$emit('add-role', this.newRoleName.trim());
       this.newRoleName = ''; this.showAddRole = false; this.addRoleEnterCount = 0;
     },
-    cancelAddRole() { this.newRoleName = ''; this.showAddRole = false; },
+    cancelAddRole() { this.newRoleName = ''; this.showAddRole = false; this.addRoleEnterCount = 0; },
     deleteRole(roleId: string) {
       if (confirm('Are you sure you want to delete this role and all its tasks?'))
         this.$emit('delete-role', roleId);
@@ -481,8 +497,9 @@ export default defineComponent({
 .task-count { font-size: 11px; color: #999; flex-shrink: 0; }
 .delete-role-btn {
   background: none; border: 1px solid #dc3545; color: #dc3545;
-  width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 12px;
+  width: 16px; height: 16px; border-radius: 50%; cursor: pointer; font-size: 10px;
   flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0;
+  line-height: 1;
 }
 .delete-role-btn:hover { background-color: #dc3545; color: white; }
 .edit-role-btn { background: none; border: none; cursor: pointer; font-size: 13px; flex-shrink: 0; padding: 0; line-height: 1; }
