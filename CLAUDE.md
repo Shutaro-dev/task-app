@@ -1,8 +1,10 @@
-# CLAUDE.md — Fourth Generation Time Management App
+# CLAUDE.md — WeeklyCompass
 
 ## プロジェクト概要
 
-7つの役割（ロール）ごとにタスクを管理し、週次カレンダーにスケジュールするタイムマネジメントアプリ。Stephen Covey の「7つの習慣」の概念（ロールと目標、Sharpen the Saw）に基づく。
+**WeeklyCompass** — 7つの役割（ロール）ごとにタスクを管理し、週次カレンダーにスケジュールするタイムマネジメントアプリ。Stephen Covey の「7つの習慣」の概念（ロールと目標、Sharpen the Saw）に基づく第四世代タイムマネジメント。
+
+GitHub: https://github.com/Shutaro-dev/task-app
 
 ## モノレポ構成
 
@@ -11,7 +13,7 @@ my-app/
 ├── front-task-app/   # Vue 3 + TypeScript + Vite (port: 5173)
 ├── task-app/         # Spring Boot 3.4.4 + MyBatis + PostgreSQL (port: 8080)
 ├── startup-guide.md  # 起動手順（DB・バックエンド・フロントエンド）
-├── implementation-plan.md  # 実装中の5機能の詳細計画
+├── feature-log.md    # 実装済み機能の変更ログ
 ├── reset-db.sh       # DB 完全リセット＆スキーマ適用
 └── apply-schema.sh   # スキーマのみ適用
 ```
@@ -24,7 +26,7 @@ cd task-app && ./gradlew bootRun           # バックエンド（別ターミ�
 cd front-task-app && npm run dev           # フロントエンド（別ターミナル）
 ```
 
-詳細は [startup-guide.md](startup-guide.md) を参照。
+カスタムコマンド `/start` でも起動手順を確認できる。詳細は [startup-guide.md](startup-guide.md) を参照。
 
 ---
 
@@ -100,14 +102,16 @@ cd task-app && ./gradlew test
 
 | Method | Path | 状態 |
 |---|---|---|
-| GET | `/api/roles` | ✅ 実装済み（タスクのネスト含む） |
+| GET | `/api/roles` | ✅ 実装済み（タスクのネスト・color・sort_order 含む） |
 | POST | `/api/roles` | ✅ 実装済み |
-| PUT | `/api/roles/{id}` | ✅ 実装済み |
+| PUT | `/api/roles/{id}` | ✅ 実装済み（color フィールド含む） |
 | DELETE | `/api/roles/{id}` | ✅ 実装済み |
+| PUT | `/api/roles/reorder` | ✅ 実装済み |
 | POST | `/api/tasks` | ✅ 実装済み |
-| GET | `/api/tasks` | ❌ 未実装（コメントアウト） |
-| PUT | `/api/tasks/{id}` | ❌ 未実装（要追加） |
-| DELETE | `/api/tasks/{id}` | ❌ 未実装（要追加） |
+| GET | `/api/tasks` | ✅ 実装済み |
+| PUT | `/api/tasks/{id}` | ✅ 実装済み（title・isPermanent） |
+| DELETE | `/api/tasks/{id}` | ✅ 実装済み |
+| PUT | `/api/tasks/reorder` | ✅ 実装済み |
 
 ---
 
@@ -115,25 +119,24 @@ cd task-app && ./gradlew test
 
 ```sql
 roles  : role_id, role_name, is_expanded, color(VARCHAR7), sort_order, created_at, updated_at
-tasks  : id, title, role_id(FK→roles), is_permanent, sort_order, created_at, updated_at
+tasks  : id, title, role_id(FK→roles.role_id), is_permanent, sort_order, created_at, updated_at
 ```
 
 その他テーブル: `sharpen_the_saw_areas`, `sharpen_the_saw_tasks`, `week_data`, `scheduled_tasks`, `day_notes`
 
 ---
 
-## 進行中の実装計画
+## 実装済み機能
 
-[implementation-plan.md](implementation-plan.md) に詳細。5機能を順次実装中。
-
-| Phase | 機能 | 状態 |
-|---|---|---|
-| DB移行 | roles に color・sort_order、tasks に sort_order 追加 | ✅ 完了（schema更新済み） |
-| 1 | 起床・就寝時間を30分単位に | ✅ 完了 |
-| 2 | ロールカラー設定 + カレンダー反映 | 未着手 |
-| 3 | タスク名編集 + 並び替え | 未着手 |
-| 4 | 永続タスク ↔ 一時タスク切り替え | 未着手 |
-| 5 | ロール自体の並び替え | 未着手 |
+| 機能 | 状態 |
+|---|---|
+| 起床・就寝時間を30分単位に | ✅ 完了 |
+| ロールカラー設定 + カレンダー反映 | ✅ 完了 |
+| タスク名インライン編集 | ✅ 完了 |
+| ロール・タスクのドラッグ並び替え | ✅ 完了 |
+| 永続タスク ↔ 一時タスク切り替え | ✅ 完了 |
+| Sharpen the Saw（4領域）設定 | ✅ 完了 |
+| 週次メモ・日次メモ | ✅ 完了 |
 
 ---
 
@@ -151,3 +154,5 @@ tasks  : id, title, role_id(FK→roles), is_permanent, sort_order, created_at, u
 - `role.tasks` は `isPermanent: true` のタスクのみ保持。`changeWeek` 時に false は削除される
 - localStorage の旧データには `color` / `sort_order` がない場合がある。`|| デフォルト値` でフォールバックする
 - WeeklyCalendar の `.scheduled-task` CSS に `background-color` の固定値を残すと inline style が負けるので注意
+- SharpenTheSaw の4領域: Physical / Social・Emotional / Spiritual / **Intellectual**（旧: Mental）
+- ブラウザタブタイトル: **WeeklyCompass**（`front-task-app/index.html`）

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker ps*)",
+      "Bash(docker start my-postgres)",
+      "Bash(docker stop my-postgres)",
+      "Bash(docker exec -it my-postgres*)",
+      "Bash(cd task-app && ./gradlew test*)",
+      "Bash(cd task-app && ./gradlew build*)",
+      "Bash(cd front-task-app && npm run*)",
+      "Bash(npx vue-tsc --noEmit*)",
+      "Bash(curl -s http://localhost:8080/*)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add front-task-app/*)",
+      "Bash(git add task-app/*)",
+      "Bash(git add README.md)",
+      "Bash(git add CLAUDE.md)",
+      "Bash(git add .claude/*)"
+    ]
+  }
+}
