@@ -615,9 +615,9 @@ export default defineComponent({
 /* スクロール可能なタイムライン本体 */
 .calendar-timeline-body {
   flex: 1;
+  min-height: 0;
   display: flex;
   overflow-y: auto;
-  min-height: 0;
   align-items: flex-start;
   scrollbar-gutter: stable;
 }
@@ -657,7 +657,7 @@ export default defineComponent({
 /* 固定ノートセクション（スクロールしない） */
 .calendar-notes-section {
   display: flex;
-  flex-shrink: 0;
+  flex: 0 0 15vh;
   min-height: 80px;
   border-top: 2px solid #e0e0e0;
   background-color: white;
