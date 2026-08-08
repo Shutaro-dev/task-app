@@ -24,6 +24,7 @@
       :scheduled-tasks="currentWeekData.scheduledTasks"
       :day-notes="currentWeekData.dayNotes"
       :role-colors="roleColorMap"
+      :is-list-mode="isListMode"
       @week-change="changeWeek"
       @task-drop="handleTaskDrop"
       @update-day-notes="updateDayNotes"
@@ -32,6 +33,7 @@
       @task-deleted="handleTaskDeleted"
       @add-copied-task="addCopiedTask"
       @download-pdf="downloadPdf"
+      @toggle-list-mode="toggleListMode"
     />
     
     <RightSidebar 
@@ -73,6 +75,7 @@ export default defineComponent({
   data() {
     return {
       showSettings: false,
+      isListMode: false, // ON時はカレンダーを時間非表示のチェックリスト表示にする
       currentWeek: this.getStartOfWeek(new Date()),
       draggedTask: null as Task | null,
       roles: [
@@ -350,6 +353,11 @@ export default defineComponent({
       this.saveData();
     },
 
+    toggleListMode() {
+      this.isListMode = !this.isListMode;
+      this.saveData();
+    },
+
     reorderRoles(newRoles: Role[]) {
       // newRoles は LeftSidebar の roleList 由来で merged tasks（permanent + temporary）を含む。
       // this.roles（permanent タスクのみ）を元に順序だけ入れ替えることで二重追加を防ぐ。
@@ -363,6 +371,7 @@ export default defineComponent({
           currentWeek: this.currentWeek.toISOString(),
           roles: this.roles,
           sharpenTheSawAreas: this.sharpenTheSawAreas,
+          isListMode: this.isListMode,
           weekData: Array.from(this.weekData.entries()).map(([key, value]) => [
             key,
             {
@@ -402,7 +411,11 @@ export default defineComponent({
           if (parsed.sharpenTheSawAreas) {
             this.sharpenTheSawAreas = parsed.sharpenTheSawAreas;
           }
-          
+
+          if (typeof parsed.isListMode === 'boolean') {
+            this.isListMode = parsed.isListMode;
+          }
+
           if (parsed.weekData) {
             this.weekData = new Map(
               parsed.weekData.map(([key, value]: [string, any]) => [

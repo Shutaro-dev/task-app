@@ -8,13 +8,22 @@
         </div>
         <button @click="nextWeek" class="nav-btn">›</button>
       </div>
+      <label class="list-mode-toggle">
+        <input
+          type="checkbox"
+          :checked="isListMode"
+          @change="$emit('toggle-list-mode')"
+        />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">リスト表示</span>
+      </label>
       <button class="pdf-btn" @click.stop="emitDownload">PDF Download</button>
     </div>
     
     <div class="calendar-content">
       <!-- 常に固定表示されるヘッダー行 -->
       <div class="calendar-day-headers">
-        <div class="time-column-header"></div>
+        <div v-if="!isListMode" class="time-column-header"></div>
         <div
           v-for="(_day, dayIndex) in days"
           :key="dayIndex"
@@ -23,15 +32,15 @@
         >
           <div class="day-name">{{ _day.name }}</div>
           <div class="day-date">{{ formatDate(_day.date) }}</div>
-          <div v-if="getSleepInfo(dayIndex)" class="sleep-indicator">
+          <div v-if="!isListMode && getSleepInfo(dayIndex)" class="sleep-indicator">
             💤 {{ getSleepInfo(dayIndex) }}
           </div>
         </div>
       </div>
 
-      <!-- スクロール可能なタイムライン本体 -->
+      <!-- スクロール可能なタイムライン本体（リストモード時は時間軸を出さずチェックリスト表示） -->
       <div class="calendar-timeline-body">
-        <div class="time-slots-column">
+        <div v-if="!isListMode" class="time-slots-column">
           <div
             v-for="hour in displayHours"
             :key="hour"
@@ -45,33 +54,65 @@
           v-for="(_day, dayIndex) in days"
           :key="dayIndex"
           class="day-timeline"
+          :class="{ 'day-list': isListMode }"
           @drop="handleDrop(dayIndex, $event)"
           @dragover.prevent
         >
-          <div
-            v-for="hour in displayHours"
-            :key="hour"
-            class="hour-slot"
-            :data-hour="hour"
-            @contextmenu.prevent="onEmptySlotRightClick(dayIndex, hour, $event)"
-          ></div>
+          <template v-if="!isListMode">
+            <div
+              v-for="hour in displayHours"
+              :key="hour"
+              class="hour-slot"
+              :data-hour="hour"
+              @contextmenu.prevent="onEmptySlotRightClick(dayIndex, hour, $event)"
+            ></div>
 
-          <div
-            v-for="task in getTasksForDay(dayIndex)"
-            :key="task.id"
-            class="scheduled-task"
-            :style="getTaskStyle(task)"
-            @mousedown="startTaskResize(task, $event)"
-            @click="selectTask(task)"
-            @contextmenu.prevent="onTaskRightClick(task, $event)"
-            :class="{ 'selected': selectedTask?.id === task.id }"
-          >
-            <div class="task-content">
-              {{ task.title }}
+            <div
+              v-for="task in getTasksForDay(dayIndex)"
+              :key="task.id"
+              class="scheduled-task"
+              :style="getTaskStyle(task)"
+              @mousedown="startTaskResize(task, $event)"
+              @click="selectTask(task)"
+              @contextmenu.prevent="onTaskRightClick(task, $event)"
+              :class="{ 'selected': selectedTask?.id === task.id }"
+            >
+              <div class="task-content">
+                {{ task.title }}
+              </div>
+              <div class="resize-handle resize-handle-top" @mousedown.stop="startResize(task, 'top', $event)"></div>
+              <div class="resize-handle resize-handle-bottom" @mousedown.stop="startResize(task, 'bottom', $event)"></div>
             </div>
-            <div class="resize-handle resize-handle-top" @mousedown.stop="startResize(task, 'top', $event)"></div>
-            <div class="resize-handle resize-handle-bottom" @mousedown.stop="startResize(task, 'bottom', $event)"></div>
-          </div>
+          </template>
+
+          <template v-else>
+            <div
+              v-for="task in getSortedTasksForDay(dayIndex)"
+              :key="task.id"
+              class="list-task"
+              :class="{ 'selected': selectedTask?.id === task.id, 'completed': task.completed, 'drag-over': dragOverTaskId === task.id }"
+              draggable="true"
+              @click="selectTask(task)"
+              @contextmenu.prevent="onTaskRightClick(task, $event)"
+              @dragstart="onListTaskDragStart(task, $event)"
+              @dragover.prevent="onListTaskDragOver(task)"
+              @dragleave="onListTaskDragLeave(task)"
+              @drop.stop="onListTaskDrop(dayIndex, task, $event)"
+              @dragend="onListTaskDragEnd"
+            >
+              <input
+                type="checkbox"
+                class="list-task-checkbox"
+                :checked="!!task.completed"
+                @click.stop
+                @change="toggleCompleted(task)"
+              />
+              <span class="list-task-title">{{ task.title }}</span>
+            </div>
+            <div v-if="getSortedTasksForDay(dayIndex).length === 0" class="list-empty-hint">
+              ドラッグしてタスクを追加
+            </div>
+          </template>
         </div>
       </div>
 
@@ -149,9 +190,13 @@ export default defineComponent({
     roleColors: {
       type: Object as PropType<Record<string, string>>,
       default: () => ({})
+    },
+    isListMode: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['week-change', 'task-drop', 'update-day-notes', 'update-sleep-time', 'update-task', 'task-deleted', 'add-copied-task', 'download-pdf'],
+  emits: ['week-change', 'task-drop', 'update-day-notes', 'update-sleep-time', 'update-task', 'task-deleted', 'add-copied-task', 'download-pdf', 'toggle-list-mode'],
   data() {
     return {
       // 5:00 AM to 24:00 (next day 0:00) - 20 hours total
@@ -171,7 +216,10 @@ export default defineComponent({
       menuY: 0,
       copiedTask: null as ScheduledTask | null,
       pasteTarget: null as { dayIndex: number, hour: number } | null,
-      contextMenuType: 'task' as 'task' | 'paste' | ''
+      contextMenuType: 'task' as 'task' | 'paste' | '',
+      // リストモードでの並び替えドラッグ状態
+      dragTaskId: null as string | null,
+      dragOverTaskId: null as string | null
     };
   },
   computed: {
@@ -224,22 +272,108 @@ export default defineComponent({
     
     handleDrop(dayIndex: number, event: DragEvent) {
       event.preventDefault();
-      
+
+      if (this.isListMode) {
+        // リストモードではY座標を使わず、その日の末尾に追加する
+        this.addTaskToDayList(dayIndex);
+        return;
+      }
+
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
       const y = event.clientY - rect.top;
       const hourHeight = rect.height / this.displayHours.length;
       const hourIndex = Math.floor(y / hourHeight);
       const minutes = Math.floor((y % hourHeight) / hourHeight * 60);
-      
+
       // Convert display hour index to actual hour (5 AM = index 0)
       const actualHour = this.displayHours[hourIndex];
       const startTime = `${actualHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-      
+
       this.$emit('task-drop', dayIndex, startTime);
     },
-    
+
+    slotTimeForIndex(index: number): string {
+      // 時間軸を表示しないが、時間モードへ戻した時に重ならないよう30分刻みで割り当てる
+      const totalMinutes = Math.min(23 * 60 + 30, 6 * 60 + index * 30);
+      const hour = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    },
+
+    nextListSlotTime(dayIndex: number): string {
+      return this.slotTimeForIndex(this.getTasksForDay(dayIndex).length);
+    },
+
+    addTaskToDayList(dayIndex: number) {
+      this.$emit('task-drop', dayIndex, this.nextListSlotTime(dayIndex));
+    },
+
     getTasksForDay(dayIndex: number): ScheduledTask[] {
       return this.scheduledTasks.filter(task => task.day === dayIndex);
+    },
+
+    getSortedTasksForDay(dayIndex: number): ScheduledTask[] {
+      return [...this.getTasksForDay(dayIndex)].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    },
+
+    toggleCompleted(task: ScheduledTask) {
+      this.$emit('update-task', task.id, { completed: !task.completed });
+    },
+
+    // ── リストモード：ドラッグによる並び替え ──────────
+    onListTaskDragStart(task: ScheduledTask, event: DragEvent) {
+      this.dragTaskId = task.id;
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', task.id);
+      }
+    },
+
+    onListTaskDragOver(task: ScheduledTask) {
+      if (this.dragTaskId && this.dragTaskId !== task.id) {
+        this.dragOverTaskId = task.id;
+      }
+    },
+
+    onListTaskDragLeave(task: ScheduledTask) {
+      if (this.dragOverTaskId === task.id) {
+        this.dragOverTaskId = null;
+      }
+    },
+
+    onListTaskDrop(dayIndex: number, targetTask: ScheduledTask, event: DragEvent) {
+      event.preventDefault();
+      if (this.dragTaskId && this.dragTaskId !== targetTask.id) {
+        this.reorderListTasks(dayIndex, this.dragTaskId, targetTask.id);
+      } else if (!this.dragTaskId) {
+        // サイドバーからの新規タスクが既存タスクの上にドロップされた場合も追加として扱う
+        this.addTaskToDayList(dayIndex);
+      }
+      this.dragTaskId = null;
+      this.dragOverTaskId = null;
+    },
+
+    onListTaskDragEnd() {
+      this.dragTaskId = null;
+      this.dragOverTaskId = null;
+    },
+
+    reorderListTasks(dayIndex: number, draggedId: string, targetId: string) {
+      const ordered = this.getSortedTasksForDay(dayIndex);
+      const fromIndex = ordered.findIndex(t => t.id === draggedId);
+      const toIndex = ordered.findIndex(t => t.id === targetId);
+      if (fromIndex === -1 || toIndex === -1) return;
+
+      const [moved] = ordered.splice(fromIndex, 1);
+      ordered.splice(toIndex, 0, moved);
+
+      // 表示順を保つため、その日のタスクの startTime（非表示の内部ソートキー）を振り直す
+      ordered.forEach((t, index) => {
+        const newStartTime = this.slotTimeForIndex(index);
+        if (t.startTime !== newStartTime) {
+          this.$emit('update-task', t.id, { startTime: newStartTime });
+        }
+      });
     },
     
     getTaskStyle(task: ScheduledTask): import('vue').StyleValue {
@@ -548,6 +682,59 @@ export default defineComponent({
   background-color: #f0f0f0;
 }
 
+.list-mode-toggle {
+  position: absolute;
+  top: 20px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.list-mode-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  background-color: #ccc;
+  border-radius: 999px;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background-color: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.list-mode-toggle input:checked + .toggle-slider {
+  background-color: #4a90d9;
+}
+
+.list-mode-toggle input:checked + .toggle-slider::before {
+  transform: translateX(14px);
+}
+
+.toggle-label {
+  font-size: 10px;
+  color: #333;
+}
+
 .calendar-content {
   flex: 1;
   display: flex;
@@ -651,6 +838,69 @@ export default defineComponent({
   height: 26px;
   border-bottom: 1px solid #e0e0e0;
   position: relative;
+}
+
+/* リストモード：時間軸を使わず縦積みのチェックリストにする */
+.day-timeline.day-list {
+  height: auto;
+  min-height: 520px;
+  overflow: visible;
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.list-task {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+  cursor: grab;
+}
+
+.list-task:active {
+  cursor: grabbing;
+}
+
+.list-task:hover {
+  background-color: #eef2f7;
+}
+
+.list-task.selected {
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.3);
+}
+
+.list-task.drag-over {
+  border-color: #4a90d9;
+  box-shadow: 0 -2px 0 0 #4a90d9;
+}
+
+.list-task-checkbox {
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.list-task-title {
+  font-size: 11px;
+  color: #333;
+  word-break: break-word;
+}
+
+.list-task.completed .list-task-title {
+  color: #999;
+  text-decoration: line-through;
+}
+
+.list-empty-hint {
+  font-size: 10px;
+  color: #bbb;
+  text-align: center;
+  padding: 8px 0;
 }
 
 /* 固定ノートセクション（スクロールしない） */

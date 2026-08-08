@@ -22,6 +22,7 @@ export interface ScheduledTask {
     duration: number; // in minutes
     title: string;
     roleId: string;
+    completed?: boolean; // リストモードでの完了チェック
 }
 
 export interface SharpenTheSawArea {
