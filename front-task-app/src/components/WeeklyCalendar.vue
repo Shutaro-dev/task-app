@@ -32,7 +32,7 @@
         >
           <div class="day-name">{{ _day.name }}</div>
           <div class="day-date">{{ formatDate(_day.date) }}</div>
-          <div v-if="!isListMode && getSleepInfo(dayIndex)" class="sleep-indicator">
+          <div v-if="getSleepInfo(dayIndex)" class="sleep-indicator">
             💤 {{ getSleepInfo(dayIndex) }}
           </div>
         </div>
