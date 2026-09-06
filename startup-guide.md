@@ -4,9 +4,9 @@
 
 ```
 my-app/
-├── front-task-app/   # フロントエンド (Vue 3 + Vite, port: 5173)
-└── task-app/         # バックエンド (Spring Boot + MyBatis, port: 8080)
-                      # DB: PostgreSQL (port: 5432, DB名: task_app)
+├── front-task-app/   # フロントエンド (React 19 + Vite, port: 5173)
+└── task-app/         # バックエンド (Ruby on Rails 8 API, port: 8080)
+                      # DB: PostgreSQL (port: 5433, DB名: task_app)
 ```
 
 ---
@@ -26,6 +26,11 @@ docker stop my-postgres
 docker ps | grep my-postgres
 ```
 
+> **注意:** このマシンではポート5432をネイティブ(Homebrew)PostgreSQLが先に専有しているため、
+> `my-postgres` コンテナはホスト側ポート **5433** にマッピングしている(`-p 5433:5432`)。
+> 他のマシンで5432が空いている場合はそちらを使っても構わないが、その場合は
+> `task-app/config/database.yml` の `DB_PORT`(または直書きの `5433`)を合わせて変更すること。
+
 ### コンテナの初回作成（my-postgres が存在しない場合のみ）
 
 ```bash
@@ -33,7 +38,7 @@ docker run --name my-postgres \
   -e POSTGRES_USER=user \
   -e POSTGRES_PASSWORD=password \
   -e POSTGRES_DB=task_app \
-  -p 5432:5432 \
+  -p 5433:5432 \
   -d postgres
 ```
 
@@ -49,13 +54,15 @@ docker run --name my-postgres \
 ./apply-schema.sh
 ```
 
+内部的には `task-app` の Rails マイグレーション（`bin/rails db:schema:load` / `db:migrate`）を実行している。
+
 ### DB に直接接続
 
 ```bash
 # psql クライアントが手元にある場合
-PGPASSWORD=password psql -U user -d task_app
+PGPASSWORD=password psql -h 127.0.0.1 -p 5433 -U user -d task_app
 
-# Docker 経由で接続する場合
+# Docker 経由で接続する場合（ホスト側ポート競合を気にしなくてよい）
 docker exec -it my-postgres psql -U user -d task_app
 ```
 
@@ -68,14 +75,17 @@ docker exec -it my-postgres psql -U user -d task_app
 ```bash
 cd task-app
 
+# 初回のみ: gem インストール
+bundle install
+
 # 起動
-./gradlew bootRun
+bin/rails server -p 8080
 
-# テスト実行（H2 インメモリDBを使用、PostgreSQL 不要）
-./gradlew test
+# テスト実行（task_app_test DB を使用）
+bin/rails test
 
-# ビルドのみ
-./gradlew build
+# マイグレーション状態の確認
+bin/rails db:migrate:status
 ```
 
 起動後: `http://localhost:8080`
@@ -87,8 +97,13 @@ cd task-app
 | GET | `/api/roles` | ロール一覧（タスク含む） |
 | POST | `/api/roles` | ロール作成 |
 | PUT | `/api/roles/{id}` | ロール更新 |
+| PUT | `/api/roles/reorder` | ロール並び順一括更新 |
 | DELETE | `/api/roles/{id}` | ロール削除 |
+| GET | `/api/tasks` | タスク一覧 |
 | POST | `/api/tasks` | タスク作成 |
+| PUT | `/api/tasks/{id}` | タスク更新 |
+| PUT | `/api/tasks/reorder` | タスク並び順一括更新 |
+| DELETE | `/api/tasks/{id}` | タスク削除 |
 
 ---
 
@@ -123,7 +138,7 @@ npm run preview
 docker start my-postgres
 
 # 2. バックエンド起動（別ターミナル）
-cd task-app && ./gradlew bootRun
+cd task-app && bin/rails server -p 8080
 
 # 3. フロントエンド起動（別ターミナル）
 cd front-task-app && npm run dev
@@ -137,26 +152,28 @@ cd front-task-app && npm run dev
 
 | 項目 | 値 |
 |---|---|
-| Host | `localhost` |
-| Port | `5432` |
+| Host | `127.0.0.1` |
+| Port | `5433`（ホスト側。コンテナ内部は5432） |
 | DB名 | `task_app` |
 | ユーザー | `user` |
 | パスワード | `password` |
 
-`application.yml` (`task-app/src/main/resources/application.yml`) に設定済み。
+`task-app/config/database.yml` に設定済み（`DB_HOST` / `DB_PORT` / `DB_USERNAME` / `DB_PASSWORD` 環境変数で上書き可能）。
 
 ---
 
 ## 6. マイグレーション（列の追加など）
 
-スキーマ変更後に既存DBへ手動で ALTER を実行する。`reset-db.sh` を使うとデータが消えるため、開発中は ALTER 推奨。
+Rails の標準的なマイグレーションで管理する。
 
-例（Phase 2 以降の新規列追加）:
-```sql
-ALTER TABLE roles ADD COLUMN color VARCHAR(7) DEFAULT '#4a90d9';
-ALTER TABLE roles ADD COLUMN sort_order INTEGER DEFAULT 0;
-UPDATE roles SET sort_order = role_id;
+```bash
+cd task-app
+bin/rails generate migration AddColumnToRoles some_column:string
+bin/rails db:migrate
+```
 
-ALTER TABLE tasks ADD COLUMN sort_order INTEGER DEFAULT 0;
-UPDATE tasks SET sort_order = id;
+`db/schema.rb` が自動更新される。テスト用DB（`task_app_test`）にも同じスキーマを反映する場合は:
+
+```bash
+RAILS_ENV=test bin/rails db:schema:load
 ```

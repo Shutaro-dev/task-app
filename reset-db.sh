@@ -1,23 +1,19 @@
 #!/bin/bash
+# DB を完全リセットし、Rails のマイグレーションでスキーマを再適用する。
+# 注意: task_app の全データが削除される。
 
-# PostgreSQL接続情報
-DB_USER="user"
-DB_NAME="task_app"
-DB_PASSWORD="password"
-SCHEMA_FILE="task-app/src/main/resources/sql/database_schema.sql"
+set -e
 
-echo "🗑️  Dropping database if exists..."
-PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d postgres -c "DROP DATABASE IF EXISTS $DB_NAME;"
+echo "🗑️  Dropping and recreating database..."
+(cd task-app && DB_PORT="${DB_PORT:-5433}" bin/rails db:drop db:create)
 
-echo "🆕 Creating database..."
-PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME;"
+echo "📝 Applying schema (db:schema:load)..."
+(cd task-app && DB_PORT="${DB_PORT:-5433}" bin/rails db:schema:load)
 
-echo "📝 Applying schema..."
-PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $DB_NAME -f $SCHEMA_FILE
+echo "🌱 Seeding initial data..."
+(cd task-app && DB_PORT="${DB_PORT:-5433}" bin/rails db:seed)
 
 echo "✅ Database reset complete!"
 echo ""
 echo "📊 Verifying tables..."
-PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $DB_NAME -c "\dt"
-
-
+PGPASSWORD=password psql -h 127.0.0.1 -p "${DB_PORT:-5433}" -U user -d task_app -c "\dt"

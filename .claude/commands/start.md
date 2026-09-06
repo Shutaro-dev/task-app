@@ -13,7 +13,7 @@ docker start my-postgres
 
 **ターミナル 2 — バックエンド**
 ```bash
-cd task-app && ./gradlew bootRun
+cd task-app && bin/rails server -p 8080
 ```
 
 **ターミナル 3 — フロントエンド**
@@ -41,3 +41,4 @@ open http://localhost:5173
 - フロントエンドは localStorage のみで動作するため、バックエンドなしでも起動可能
 - バックエンドは DB が起動していないと起動に失敗する
 - DB コンテナが存在しない場合は startup-guide.md の「初回作成」手順を参照
+- このマシンでは PostgreSQL はホスト側ポート **5433** で待ち受けている（5432はネイティブpostgresqlが専有）

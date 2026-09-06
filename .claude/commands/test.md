@@ -1,24 +1,22 @@
 # /test — バックエンドテスト実行
 
-Spring Boot のテストスイートを実行する。H2 インメモリ DB を使用するため PostgreSQL 不要。
+Rails のテストスイートを実行する。`task_app_test` DB（PostgreSQL）を使用する。
 
 ## 実行
 
 ```bash
-cd task-app && ./gradlew test
+cd task-app && bin/rails test
 ```
 
 ## テスト対象
 
-| テストクラス | 内容 |
+| テストファイル | 内容 |
 |---|---|
-| `RoleServiceTest` | ロールの CRUD・color 保存・reorder |
-| `TaskServiceTest` | タスクの CRUD・reorder |
-| `RoleRestControllerTest` | ロール API エンドポイント |
-| `TaskRestControllerTest` | タスク API エンドポイント |
+| `test/controllers/api/roles_controller_test.rb` | ロール API の CRUD・color・reorder・バリデーション |
+| `test/controllers/api/tasks_controller_test.rb` | タスク API の CRUD・reorder・バリデーション |
 
-## レポート確認
+## 個別実行
 
 ```bash
-open task-app/build/reports/tests/test/index.html
+bin/rails test test/controllers/api/roles_controller_test.rb
 ```

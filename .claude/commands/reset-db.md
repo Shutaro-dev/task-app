@@ -9,6 +9,8 @@
 ./reset-db.sh
 ```
 
+内部で Rails のマイグレーション（`bin/rails db:drop db:create db:schema:load db:seed`）を実行している。
+
 ## スキーマのみ適用（データを消さない場合）
 
 テーブルが存在しない場合のみ適用（既存データは保持）:
@@ -19,19 +21,17 @@
 
 ## マイグレーション（列追加など）
 
-スキーマ変更を既存 DB に手動適用する場合:
-
 ```bash
-docker exec -it my-postgres psql -U user -d task_app
+cd task-app
+bin/rails generate migration AddColumnToRoles some_column:string
+bin/rails db:migrate
 ```
-
-psql 内で ALTER TABLE を実行。
 
 ## DB 接続情報
 
 | 項目 | 値 |
 |---|---|
-| Host | localhost:5432 |
+| Host | 127.0.0.1:5433 |
 | DB | task_app |
 | User | user |
 | Password | password |

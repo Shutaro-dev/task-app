@@ -1,21 +1,17 @@
 #!/bin/bash
+# 既存のDBにスキーマのみ適用する(Rails のマイグレーション)。
+# 注意: 既にテーブルが存在する場合はエラーになる可能性がある。
 
-# PostgreSQL接続情報
-DB_USER="user"
-DB_NAME="task_app"
-DB_PASSWORD="password"
-SCHEMA_FILE="task-app/src/main/resources/sql/database_schema.sql"
+set -e
 
-echo "📝 Applying schema to existing database..."
+echo "📝 Applying schema to existing database (db:migrate)..."
 echo "⚠️  Warning: This will attempt to create tables. Existing tables may cause errors."
 echo ""
 
-PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $DB_NAME -f $SCHEMA_FILE
+(cd task-app && DB_PORT="${DB_PORT:-5433}" bin/rails db:migrate)
 
 echo ""
 echo "✅ Schema application complete!"
 echo ""
 echo "📊 Current tables:"
-PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $DB_NAME -c "\dt"
-
-
+PGPASSWORD=password psql -h 127.0.0.1 -p "${DB_PORT:-5433}" -U user -d task_app -c "\dt"
