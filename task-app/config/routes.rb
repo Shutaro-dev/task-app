@@ -4,6 +4,9 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
   namespace :api do
+    resources :users, only: [:create]
+    resource :session, only: [:show, :create, :destroy]
+
     resources :roles, only: [:index, :create, :update, :destroy] do
       collection do
         put :reorder

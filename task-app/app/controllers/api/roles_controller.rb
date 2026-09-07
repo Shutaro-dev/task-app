@@ -1,9 +1,10 @@
 module Api
   class RolesController < ApplicationController
+    before_action :authenticate_user!
     before_action :require_json_content_type, only: [:create, :update, :reorder]
 
     def index
-      roles = Role.order(:sort_order, :role_id)
+      roles = current_user.roles.order(:sort_order, :role_id)
       render json: roles.map { |role| role_json(role) }
     end
 
@@ -13,19 +14,19 @@ module Api
 
       role_id = params[:roleId]
       if role_id.present?
-        role = Role.find_by(role_id: role_id)
+        role = current_user.roles.find_by(role_id: role_id)
         raise ActiveRecord::RecordNotFound, "Role not found: #{role_id}" unless role
 
         role.update!(role_name: role_name, color: params[:color])
       else
-        Role.create!(role_name: role_name, color: params[:color])
+        current_user.roles.create!(role_name: role_name, color: params[:color])
       end
 
       head :created
     end
 
     def update
-      role = Role.find_by(role_id: params[:id])
+      role = current_user.roles.find_by(role_id: params[:id])
       raise ActiveRecord::RecordNotFound, "Role not found: #{params[:id]}" unless role
 
       role_name = params[:roleName]
@@ -41,13 +42,13 @@ module Api
 
     def reorder
       (params[:_json] || []).each do |item|
-        Role.where(role_id: item[:id]).update_all(sort_order: item[:sortOrder])
+        current_user.roles.where(role_id: item[:id]).update_all(sort_order: item[:sortOrder])
       end
       head :ok
     end
 
     def destroy
-      role = Role.find_by(role_id: params[:id])
+      role = current_user.roles.find_by(role_id: params[:id])
       raise ActiveRecord::RecordNotFound, "Role not found: #{params[:id]}" unless role
 
       role.destroy!

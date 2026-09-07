@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_06_141121) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_07_023510) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -35,6 +35,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_141121) do
     t.string "role_name", limit: 255, null: false
     t.integer "sort_order", default: 0
     t.datetime "updated_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.bigint "user_id"
+    t.index ["user_id"], name: "index_roles_on_user_id"
   end
 
   create_table "scheduled_tasks", id: :serial, force: :cascade do |t|
@@ -73,22 +75,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_141121) do
     t.integer "sort_order", default: 0
     t.string "title", limit: 255, null: false
     t.datetime "updated_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.bigint "user_id"
     t.index ["role_id"], name: "idx_tasks_role_id"
+    t.index ["user_id"], name: "index_tasks_on_user_id"
+  end
+
+  create_table "users", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email", limit: 255, null: false
+    t.string "name", limit: 255
+    t.string "password_digest", null: false
+    t.datetime "updated_at", null: false
+    t.index "lower((email)::text)", name: "idx_users_email_unique", unique: true
   end
 
   create_table "week_data", id: :serial, force: :cascade do |t|
     t.datetime "created_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
     t.datetime "updated_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.bigint "user_id"
     t.date "week_start", null: false
     t.text "weekly_notes"
-
-    t.unique_constraint ["week_start"], name: "week_data_week_start_key"
+    t.index ["user_id", "week_start"], name: "idx_week_data_user_id_week_start_unique", unique: true
+    t.index ["user_id"], name: "index_week_data_on_user_id"
   end
 
   add_foreign_key "day_notes", "week_data", column: "week_data_id", name: "day_notes_week_data_id_fkey", on_delete: :cascade
+  add_foreign_key "roles", "users"
   add_foreign_key "scheduled_tasks", "roles", primary_key: "role_id", name: "scheduled_tasks_role_id_fkey", on_delete: :cascade
   add_foreign_key "scheduled_tasks", "tasks", name: "scheduled_tasks_task_id_fkey", on_delete: :cascade
   add_foreign_key "scheduled_tasks", "week_data", column: "week_data_id", name: "scheduled_tasks_week_data_id_fkey", on_delete: :cascade
   add_foreign_key "sharpen_the_saw_tasks", "sharpen_the_saw_areas", column: "area_id", name: "sharpen_the_saw_tasks_area_id_fkey", on_delete: :cascade
   add_foreign_key "tasks", "roles", primary_key: "role_id", name: "tasks_role_id_fkey", on_delete: :cascade
+  add_foreign_key "tasks", "users"
+  add_foreign_key "week_data", "users"
 end

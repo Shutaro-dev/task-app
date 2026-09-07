@@ -46,3 +46,9 @@ export interface WeekData {
     weeklyNotes: string;
     temporaryTasks?: Task[];
 }
+
+export interface User {
+    id: number;
+    email: string;
+    name?: string | null;
+}

@@ -2,15 +2,15 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: white;
+  background-color: var(--surface);
   overflow: hidden;
   height: 100vh;
 }
 
 .calendar-header {
   padding: 12px 16px;
-  border-bottom: 1px solid #e0e0e0;
-  background-color: #f8f9fa;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--surface-subtle);
   flex-shrink: 0;
   position: relative;
 }
@@ -23,8 +23,8 @@
 }
 
 .nav-btn {
-  background: none;
-  border: 1px solid #ccc;
+  background: var(--surface);
+  border: 1px solid var(--border);
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -32,13 +32,16 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 18px;
-  transition: all 0.2s;
+  font-size: 17px;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-xs);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .nav-btn:hover {
-  background-color: #e9ecef;
-  border-color: #999;
+  background-color: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
 }
 
 .week-display {
@@ -46,35 +49,40 @@
 }
 
 .week-text {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #333;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
 .pdf-btn {
   position: absolute;
   top: 20px;
-  right: 12px;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 12px;
-  padding: 2px 8px;
-  font-size: 10px;
-  color: #333;
+  right: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
 }
 
 .pdf-btn:hover {
-  background-color: #f0f0f0;
+  background-color: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
 }
 
 .list-mode-toggle {
   position: absolute;
   top: 20px;
-  left: 12px;
+  left: 14px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   cursor: pointer;
   user-select: none;
 }
@@ -90,8 +98,8 @@
   position: relative;
   width: 32px;
   height: 18px;
-  background-color: #ccc;
-  border-radius: 999px;
+  background-color: var(--border-strong);
+  border-radius: var(--radius-pill);
   transition: background-color 0.2s;
   flex-shrink: 0;
 }
@@ -105,11 +113,12 @@
   height: 14px;
   background-color: #fff;
   border-radius: 50%;
+  box-shadow: var(--shadow-xs);
   transition: transform 0.2s;
 }
 
 .list-mode-toggle input:checked + .toggle-slider {
-  background-color: #4a90d9;
+  background-color: var(--accent);
 }
 
 .list-mode-toggle input:checked + .toggle-slider::before {
@@ -117,8 +126,9 @@
 }
 
 .toggle-label {
-  font-size: 10px;
-  color: #333;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .calendar-content {
@@ -133,8 +143,8 @@
 .calendar-day-headers {
   display: flex;
   flex-shrink: 0;
-  border-bottom: 1px solid #e0e0e0;
-  background-color: #f8f9fa;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--surface-subtle);
   scrollbar-gutter: stable;
   overflow: hidden;
 }
@@ -142,17 +152,17 @@
 .time-column-header {
   width: 70px;
   flex-shrink: 0;
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid var(--border);
 }
 
 .day-header {
   flex: 1;
   height: 50px;
   padding: 4px 4px 2px;
-  border-right: 1px solid #e0e0e0;
-  background-color: #f8f9fa;
+  border-right: 1px solid var(--border);
+  background-color: var(--surface-subtle);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
   text-align: center;
   min-width: 0;
   display: flex;
@@ -161,27 +171,30 @@
 }
 
 .day-header:hover {
-  background-color: #e9ecef;
+  background-color: var(--surface-hover);
 }
 
 .day-name {
   font-weight: 600;
-  font-size: 11px;
-  color: #333;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   line-height: 1.1;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
 }
 
 .day-date {
-  font-size: 14px;
-  color: #666;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
   line-height: 1.1;
   margin-bottom: 1px;
 }
 
 .sleep-indicator {
   font-size: 8px;
-  color: #666;
+  color: var(--text-tertiary);
   line-height: 1.1;
 }
 
@@ -197,8 +210,8 @@
 .time-slots-column {
   width: 70px;
   flex-shrink: 0;
-  border-right: 1px solid #e0e0e0;
-  background-color: #f8f9fa;
+  border-right: 1px solid var(--border);
+  background-color: var(--surface-subtle);
 }
 
 .time-slot {
@@ -207,8 +220,8 @@
   align-items: center;
   justify-content: center;
   font-size: 10px;
-  color: #666;
-  border-bottom: 1px solid #e0e0e0;
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--border);
 }
 
 .day-timeline {
@@ -216,14 +229,19 @@
   position: relative;
   overflow: hidden;
   height: 520px;
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid var(--border);
   min-width: 0;
 }
 
 .hour-slot {
   height: 26px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border);
   position: relative;
+  transition: background-color 0.1s;
+}
+
+.hour-slot:hover {
+  background-color: var(--surface-subtle);
 }
 
 /* リストモード：時間軸を使わず縦積みのチェックリストにする */
@@ -231,21 +249,22 @@
   height: auto;
   min-height: 520px;
   overflow: visible;
-  padding: 6px 4px;
+  padding: 8px 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .list-task {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  background-color: #f8f9fa;
+  gap: 7px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
   cursor: grab;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
 }
 
 .list-task:active {
@@ -253,40 +272,42 @@
 }
 
 .list-task:hover {
-  background-color: #eef2f7;
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-xs);
 }
 
 .list-task.selected {
-  border-color: #ff6b35;
-  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.3);
+  border-color: var(--select);
+  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.25);
 }
 
 .list-task.drag-over {
-  border-color: #4a90d9;
-  box-shadow: 0 -2px 0 0 #4a90d9;
+  border-color: var(--accent);
+  box-shadow: 0 -2px 0 0 var(--accent);
 }
 
 .list-task-checkbox {
   flex-shrink: 0;
   cursor: pointer;
+  accent-color: var(--accent);
 }
 
 .list-task-title {
-  font-size: 11px;
-  color: #333;
+  font-size: 11.5px;
+  color: var(--text);
   word-break: break-word;
 }
 
 .list-task.completed .list-task-title {
-  color: #999;
+  color: var(--text-tertiary);
   text-decoration: line-through;
 }
 
 .list-empty-hint {
   font-size: 10px;
-  color: #bbb;
+  color: var(--text-tertiary);
   text-align: center;
-  padding: 8px 0;
+  padding: 10px 0;
 }
 
 /* 固定ノートセクション（スクロールしない） */
@@ -294,41 +315,39 @@
   display: flex;
   flex: 1;
   min-height: 80px;
-  border-top: 2px solid #e0e0e0;
-  background-color: white;
+  border-top: 1px solid var(--border);
+  background-color: var(--surface);
+  box-shadow: inset 0 1px 0 rgba(20, 24, 33, 0.03);
   scrollbar-gutter: stable;
   overflow: hidden;
 }
 
 .notes-time-label {
   width: 70px;
-  border-right: 1px solid #e0e0e0;
-  background-color: #f8f9fa;
+  border-right: 1px solid var(--border);
+  background-color: var(--surface-subtle);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
-  color: #666;
-  font-weight: 500;
-}
-
-.hour-slot:hover {
-  background-color: #f8f9fa;
+  color: var(--text-tertiary);
+  font-weight: 600;
 }
 
 .scheduled-task {
   position: absolute;
   color: white;
-  border-radius: 3px;
-  padding: 2px 4px;
-  font-size: 9px;
-  font-weight: 500;
+  border-radius: var(--radius-xs);
+  padding: 3px 6px;
+  font-size: 9.5px;
+  font-weight: 600;
   overflow: hidden;
   cursor: grab;
   border: 1px solid transparent;
   user-select: none;
-  transition: box-shadow 0.2s;
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow 0.15s;
 }
 
 .is-dragging-task,
@@ -337,12 +356,12 @@
 }
 
 .scheduled-task:hover {
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .scheduled-task.selected {
-  border-color: #ff6b35;
-  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.3);
+  border-color: var(--select);
+  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.35);
 }
 
 .task-content {
@@ -371,12 +390,12 @@
 }
 
 .scheduled-task:hover .resize-handle {
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.35);
 }
 
 .day-notes {
   flex: 1;
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid var(--border);
   display: flex;
   min-width: 0;
 }
@@ -386,16 +405,16 @@
   height: 100%;
   border: none;
   background: transparent;
-  padding: 6px;
+  padding: 7px;
   resize: none;
   font-size: 10px;
-  color: #666;
-  line-height: 1.3;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 .notes-input:focus {
   outline: none;
-  background-color: white;
+  background-color: var(--surface-subtle);
 }
 
 .sleep-dialog-overlay {
@@ -404,7 +423,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(15, 18, 26, 0.45);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -412,24 +432,25 @@
 }
 
 .sleep-dialog {
-  background-color: white;
-  padding: 24px;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background-color: var(--surface);
+  padding: 26px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   min-width: 300px;
 }
 
 .sleep-dialog h3 {
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  color: #333;
+  margin: 0 0 18px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .sleep-inputs {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
 .sleep-input-group {
@@ -439,16 +460,24 @@
 }
 
 .sleep-input-group label {
-  font-size: 14px;
-  color: #666;
+  font-size: 13px;
+  color: var(--text-secondary);
   min-width: 80px;
 }
 
 .sleep-input-group input {
-  padding: 6px 8px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  font-size: 14px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.sleep-input-group input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .dialog-actions {
@@ -460,46 +489,56 @@
 .dialog-actions .confirm-btn,
 .dialog-actions .cancel-btn {
   padding: 8px 16px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
 .dialog-actions .confirm-btn {
-  background-color: #007bff;
+  background-color: var(--accent);
   color: white;
-  border-color: #007bff;
+  border-color: var(--accent);
+  font-weight: 600;
 }
 
 .dialog-actions .confirm-btn:hover {
-  background-color: #0056b3;
+  background-color: var(--accent-hover);
 }
 
 .dialog-actions .cancel-btn {
-  background: white;
+  background: var(--surface);
+  color: var(--text-secondary);
 }
 
 .dialog-actions .cancel-btn:hover {
-  background-color: #f0f0f0;
+  background-color: var(--surface-hover);
+  border-color: var(--border-strong);
 }
 
 .context-menu {
-  background: white;
-  border: 1px solid #ccc;
-  min-width: 100px;
-  box-shadow: 2px 2px 6px rgba(0,0,0,0.15);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 110px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
 }
 .context-menu ul {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 4px;
 }
 .context-menu li {
-  padding: 8px 16px;
+  padding: 7px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  color: var(--text);
   cursor: pointer;
+  transition: background-color 0.1s;
 }
 .context-menu li:hover {
-  background: #eee;
+  background: var(--surface-hover);
 }

@@ -13,6 +13,7 @@ module Api
 
     setup do
       Role.delete_all
+      @user = create_and_sign_in_user
     end
 
     # ─────────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ module Api
     end
 
     test "normal02: roleIdありで作成すると件数を増やさず名前だけ更新する" do
-      role = Role.create!(role_name: ROLE_NAME_ORIGINAL)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_ORIGINAL)
 
       post "/api/roles", params: { roleId: role.role_id, roleName: ROLE_NAME_UPDATED }.to_json, headers: json_headers
 
@@ -104,8 +105,8 @@ module Api
     # ─────────────────────────────────────────────────────────────────
 
     test "normal07: ロールが存在する場合200とtasks付きの一覧を返す" do
-      role = Role.create!(role_name: ROLE_NAME_TEST, color: COLOR_BLUE)
-      Task.create!(role_id: role.role_id, title: "Task 1", is_permanent: false)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST, color: COLOR_BLUE)
+      Task.create!(user: @user, role_id: role.role_id, title: "Task 1", is_permanent: false)
 
       get "/api/roles"
 
@@ -126,8 +127,8 @@ module Api
     end
 
     test "normal09: sort_order, role_idの順でソートされる" do
-      r1 = Role.create!(role_name: "Role1", sort_order: 2)
-      r2 = Role.create!(role_name: "Role2", sort_order: 1)
+      r1 = Role.create!(user: @user, role_name: "Role1", sort_order: 2)
+      r2 = Role.create!(user: @user, role_name: "Role2", sort_order: 1)
 
       get "/api/roles"
 
@@ -140,8 +141,8 @@ module Api
     # ─────────────────────────────────────────────────────────────────
 
     test "normal10: reorderでsort_orderがDBに反映される" do
-      r1 = Role.create!(role_name: "Role1")
-      r2 = Role.create!(role_name: "Role2")
+      r1 = Role.create!(user: @user, role_name: "Role1")
+      r2 = Role.create!(user: @user, role_name: "Role2")
 
       put "/api/roles/reorder", params: [
         { id: r2.role_id, sortOrder: 0 },
@@ -164,7 +165,7 @@ module Api
     # ─────────────────────────────────────────────────────────────────
 
     test "normal12: roleNameを変更すると名前が更新される" do
-      role = Role.create!(role_name: ROLE_NAME_ORIGINAL)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_ORIGINAL)
 
       put "/api/roles/#{role.role_id}", params: { roleName: ROLE_NAME_UPDATED }.to_json, headers: json_headers
 
@@ -173,7 +174,7 @@ module Api
     end
 
     test "normal13: isExpandedをfalseに変更すると反映される" do
-      role = Role.create!(role_name: ROLE_NAME_TEST)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST)
 
       put "/api/roles/#{role.role_id}", params: { roleName: ROLE_NAME_TEST, isExpanded: false }.to_json, headers: json_headers
 
@@ -182,7 +183,7 @@ module Api
     end
 
     test "normal14: isExpandedを省略すると既存の値が保持される" do
-      role = Role.create!(role_name: ROLE_NAME_ORIGINAL, is_expanded: true)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_ORIGINAL, is_expanded: true)
 
       put "/api/roles/#{role.role_id}", params: { roleName: ROLE_NAME_UPDATED }.to_json, headers: json_headers
 
@@ -193,7 +194,7 @@ module Api
     end
 
     test "normal15: colorを変更するとDBに反映されレスポンスに含まれる" do
-      role = Role.create!(role_name: ROLE_NAME_TEST, color: COLOR_BLUE)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST, color: COLOR_BLUE)
 
       put "/api/roles/#{role.role_id}", params: { roleName: ROLE_NAME_TEST, color: COLOR_RED }.to_json, headers: json_headers
 
@@ -204,8 +205,8 @@ module Api
     end
 
     test "normal16: 更新後のレスポンスに紐づくタスクが含まれる" do
-      role = Role.create!(role_name: ROLE_NAME_ORIGINAL)
-      Task.create!(role_id: role.role_id, title: "Task A", is_permanent: false)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_ORIGINAL)
+      Task.create!(user: @user, role_id: role.role_id, title: "Task A", is_permanent: false)
 
       put "/api/roles/#{role.role_id}", params: { roleName: ROLE_NAME_UPDATED, isExpanded: true }.to_json, headers: json_headers
 
@@ -216,7 +217,7 @@ module Api
     end
 
     test "error06: roleNameが空文字のとき400を返す" do
-      role = Role.create!(role_name: ROLE_NAME_TEST)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST)
 
       put "/api/roles/#{role.role_id}", params: { roleName: "", isExpanded: true }.to_json, headers: json_headers
 
@@ -224,7 +225,7 @@ module Api
     end
 
     test "error07: roleNameが未指定のとき400を返す" do
-      role = Role.create!(role_name: ROLE_NAME_TEST)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST)
 
       put "/api/roles/#{role.role_id}", params: { isExpanded: true }.to_json, headers: json_headers
 
@@ -238,7 +239,7 @@ module Api
     end
 
     test "error09: リクエストボディなしのとき400を返す" do
-      role = Role.create!(role_name: ROLE_NAME_TEST)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST)
 
       put "/api/roles/#{role.role_id}", headers: json_headers
 
@@ -246,7 +247,7 @@ module Api
     end
 
     test "error10: Content-Type未指定のとき415を返す" do
-      role = Role.create!(role_name: ROLE_NAME_TEST)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST)
 
       put "/api/roles/#{role.role_id}", params: { roleName: ROLE_NAME_UPDATED, isExpanded: true }.to_json
 
@@ -258,7 +259,7 @@ module Api
     # ─────────────────────────────────────────────────────────────────
 
     test "normal17: 存在するロールを削除すると204を返しDBから消える" do
-      role = Role.create!(role_name: ROLE_NAME_TEST)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST)
 
       delete "/api/roles/#{role.role_id}"
 
@@ -267,9 +268,9 @@ module Api
     end
 
     test "normal18: ロール削除時に紐づくタスクもCASCADE削除される" do
-      role = Role.create!(role_name: ROLE_NAME_TEST)
-      Task.create!(role_id: role.role_id, title: "Task 1", is_permanent: false)
-      Task.create!(role_id: role.role_id, title: "Task 2", is_permanent: false)
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST)
+      Task.create!(user: @user, role_id: role.role_id, title: "Task 1", is_permanent: false)
+      Task.create!(user: @user, role_id: role.role_id, title: "Task 2", is_permanent: false)
 
       delete "/api/roles/#{role.role_id}"
 
@@ -281,6 +282,49 @@ module Api
       delete "/api/roles/#{NON_EXISTING_ROLE_ID}"
 
       assert_response :not_found
+    end
+
+    # ─────────────────────────────────────────────────────────────────
+    # 認証・ユーザーごとのデータ分離
+    # ─────────────────────────────────────────────────────────────────
+
+    test "error12: 未ログインで一覧取得すると401を返す" do
+      delete "/api/session" # ログアウトしてセッションを破棄する
+
+      get "/api/roles"
+
+      assert_response :unauthorized
+    end
+
+    test "error13: 他ユーザーのロールは一覧に含まれない" do
+      other_user = User.create!(email: "other@example.com", password: TEST_USER_PASSWORD)
+      Role.create!(user: other_user, role_name: "OtherUsersRole")
+      Role.create!(user: @user, role_name: ROLE_NAME_TEST)
+
+      get "/api/roles"
+
+      body = JSON.parse(response.body)
+      assert_equal [ROLE_NAME_TEST], body.map { |r| r["roleName"] }
+    end
+
+    test "error14: 他ユーザーのロールを更新しようとすると404を返す" do
+      other_user = User.create!(email: "other@example.com", password: TEST_USER_PASSWORD)
+      other_role = Role.create!(user: other_user, role_name: "OtherUsersRole")
+
+      put "/api/roles/#{other_role.role_id}", params: { roleName: ROLE_NAME_UPDATED }.to_json, headers: json_headers
+
+      assert_response :not_found
+      assert_equal "OtherUsersRole", other_role.reload.role_name
+    end
+
+    test "error15: 他ユーザーのロールを削除しようとすると404を返す" do
+      other_user = User.create!(email: "other@example.com", password: TEST_USER_PASSWORD)
+      other_role = Role.create!(user: other_user, role_name: "OtherUsersRole")
+
+      delete "/api/roles/#{other_role.role_id}"
+
+      assert_response :not_found
+      assert Role.exists?(other_role.role_id)
     end
 
     private

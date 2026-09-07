@@ -6,9 +6,10 @@ import LeftSidebar from './LeftSidebar';
 import WeeklyCalendar from './WeeklyCalendar';
 import RightSidebar from './RightSidebar';
 import SharpenTheSawSettings from './SharpenTheSawSettings';
+import MissionStatementModal from './MissionStatementModal';
 import styles from './Dashboard.module.css';
 
-const STORAGE_KEY = 'fourth-gen-time-management';
+const DEFAULT_STORAGE_KEY = 'fourth-gen-time-management';
 const ROLE_COLORS = ['#4a90d9', '#e67e22', '#27ae60', '#8e44ad', '#e74c3c', '#16a085'];
 
 const DEFAULT_ROLES: Role[] = [
@@ -64,21 +65,23 @@ interface InitialState {
   currentWeek: Date;
   roles: Role[];
   sharpenTheSawAreas: SharpenTheSawArea[];
+  missionStatement: string;
   isListMode: boolean;
   weekData: Map<string, WeekData>;
 }
 
-function loadInitialState(): InitialState {
+function loadInitialState(storageKey: string): InitialState {
   const defaults: InitialState = {
     currentWeek: getStartOfWeek(new Date()),
     roles: DEFAULT_ROLES,
     sharpenTheSawAreas: DEFAULT_SAW_AREAS,
+    missionStatement: '',
     isListMode: false,
     weekData: new Map<string, WeekData>(),
   };
 
   try {
-    const savedData = localStorage.getItem(STORAGE_KEY);
+    const savedData = localStorage.getItem(storageKey);
     if (!savedData) return defaults;
     const parsed = JSON.parse(savedData);
     const result: InitialState = { ...defaults };
@@ -103,6 +106,10 @@ function loadInitialState(): InitialState {
       result.sharpenTheSawAreas = parsed.sharpenTheSawAreas;
     }
 
+    if (typeof parsed.missionStatement === 'string') {
+      result.missionStatement = parsed.missionStatement;
+    }
+
     if (typeof parsed.isListMode === 'boolean') {
       result.isListMode = parsed.isListMode;
     }
@@ -123,19 +130,30 @@ function loadInitialState(): InitialState {
   }
 }
 
-function Dashboard() {
+interface DashboardProps {
+  // ログインユーザーごとに localStorage を分離するためのキー。App.tsx が
+  // ユーザーIDを含むキーを渡す(未指定時は共通キーのままの旧挙動)
+  storageKey?: string;
+  // RightSidebar 上部に表示するアカウント情報 (未指定時は何も表示しない)
+  userLabel?: string;
+  onLogout?: () => void;
+}
+
+function Dashboard({ storageKey = DEFAULT_STORAGE_KEY, userLabel, onLogout }: DashboardProps) {
   // localStorage からの初回読み込みは一度だけ同期的に行う（Vue版の loadData() 相当）
   const initialDataRef = useRef<InitialState | null>(null);
   if (initialDataRef.current === null) {
-    initialDataRef.current = loadInitialState();
+    initialDataRef.current = loadInitialState(storageKey);
   }
   const initial = initialDataRef.current;
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showMissionSettings, setShowMissionSettings] = useState(false);
   const [isListMode, setIsListMode] = useState(initial.isListMode); // ON時はカレンダーを時間非表示のチェックリスト表示にする
   const [currentWeek, setCurrentWeek] = useState<Date>(initial.currentWeek);
   const [roles, setRoles] = useState<Role[]>(initial.roles);
   const [sharpenTheSawAreas, setSharpenTheSawAreas] = useState<SharpenTheSawArea[]>(initial.sharpenTheSawAreas);
+  const [missionStatement, setMissionStatement] = useState<string>(initial.missionStatement);
   const [weekData, setWeekData] = useState<Map<string, WeekData>>(initial.weekData);
 
   const draggedTaskRef = useRef<Task | null>(null);
@@ -174,17 +192,18 @@ function Dashboard() {
         currentWeek: currentWeek.toISOString(),
         roles,
         sharpenTheSawAreas,
+        missionStatement,
         isListMode,
         weekData: Array.from(weekData.entries()).map(([key, value]) => [
           key,
           { ...value, weekStart: value.weekStart.toISOString() },
         ]),
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
     } catch (error) {
       console.warn('Failed to save data to localStorage:', error);
     }
-  }, [currentWeek, roles, sharpenTheSawAreas, isListMode, weekData]);
+  }, [storageKey, currentWeek, roles, sharpenTheSawAreas, missionStatement, isListMode, weekData]);
 
   const updateWeekData = (key: string, weekStartForNew: Date, updater: (data: WeekData) => WeekData) => {
     setWeekData(prev => {
@@ -290,6 +309,10 @@ function Dashboard() {
 
   const updateSharpenTheSawAreas = (areas: SharpenTheSawArea[]) => {
     setSharpenTheSawAreas(areas);
+  };
+
+  const updateMissionStatement = (text: string) => {
+    setMissionStatement(text);
   };
 
   const updateRoleName = (roleId: string, newName: string) => {
@@ -477,6 +500,8 @@ function Dashboard() {
         onReorderTasks={reorderTasks}
         onToggleTaskPermanent={toggleTaskPermanent}
         onReorderRoles={reorderRoles}
+        userLabel={userLabel}
+        onLogout={onLogout}
       />
 
       <WeeklyCalendar
@@ -498,7 +523,9 @@ function Dashboard() {
 
       <RightSidebar
         weeklyNotes={currentWeekData.weeklyNotes}
+        missionStatement={missionStatement}
         onUpdateWeeklyNotes={updateWeeklyNotes}
+        onOpenMissionSettings={() => setShowMissionSettings(true)}
       />
 
       {showSettings && (
@@ -506,6 +533,14 @@ function Dashboard() {
           areas={sharpenTheSawAreas}
           onClose={() => setShowSettings(false)}
           onUpdateAreas={updateSharpenTheSawAreas}
+        />
+      )}
+
+      {showMissionSettings && (
+        <MissionStatementModal
+          missionStatement={missionStatement}
+          onClose={() => setShowMissionSettings(false)}
+          onSave={updateMissionStatement}
         />
       )}
     </div>

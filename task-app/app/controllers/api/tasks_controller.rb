@@ -1,9 +1,10 @@
 module Api
   class TasksController < ApplicationController
+    before_action :authenticate_user!
     before_action :require_json_content_type, only: [:create, :update, :reorder]
 
     def index
-      tasks = Task.order(:sort_order, :id)
+      tasks = current_user.tasks.order(:sort_order, :id)
       render json: tasks.map { |task| task_json(task) }
     end
 
@@ -13,14 +14,17 @@ module Api
       is_permanent = params[:isPermanent]
       return render_bad_request if role_id.nil? || title.blank? || is_permanent.nil?
 
+      role = current_user.roles.find_by(role_id: role_id)
+      raise ActiveRecord::RecordNotFound, "Role not found: #{role_id}" unless role
+
       # taskId が指定されていても Spring 版と同じく無視し、常に新規作成する
-      Task.create!(role_id: role_id, title: title, is_permanent: is_permanent)
+      current_user.tasks.create!(role_id: role.role_id, title: title, is_permanent: is_permanent)
 
       head :created
     end
 
     def update
-      task = Task.find_by(id: params[:id])
+      task = current_user.tasks.find_by(id: params[:id])
       raise ActiveRecord::RecordNotFound, "Task not found: #{params[:id]}" unless task
 
       title = params[:title]
@@ -33,13 +37,13 @@ module Api
 
     def reorder
       (params[:_json] || []).each do |item|
-        Task.where(id: item[:id]).update_all(sort_order: item[:sortOrder])
+        current_user.tasks.where(id: item[:id]).update_all(sort_order: item[:sortOrder])
       end
       head :ok
     end
 
     def destroy
-      task = Task.find_by(id: params[:id])
+      task = current_user.tasks.find_by(id: params[:id])
       raise ActiveRecord::RecordNotFound, "Task not found: #{params[:id]}" unless task
 
       task.destroy!

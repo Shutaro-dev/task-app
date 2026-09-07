@@ -1,4 +1,4 @@
-.settings-overlay {
+.mission-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -12,12 +12,11 @@
   z-index: 2000;
 }
 
-.settings-modal {
+.mission-modal {
   background-color: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  max-width: 800px;
-  max-height: 90vh;
+  max-width: 560px;
   width: 90%;
   display: flex;
   flex-direction: column;
@@ -63,123 +62,36 @@
 }
 
 .modal-content {
-  flex: 1;
   padding: 24px;
-  overflow-y: auto;
 }
 
 .description {
-  margin: 0 0 24px 0;
+  margin: 0 0 16px 0;
   color: var(--text-secondary);
   line-height: 1.6;
   font-size: 13.5px;
 }
 
-.areas-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-.area-section {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.area-header {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 14px 16px;
-  background-color: var(--surface-subtle);
-  border-bottom: 1px solid var(--border);
-}
-
-.area-icon {
-  font-size: 19px;
-  line-height: 1;
-}
-
-.area-header h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.area-content {
-  padding: 18px;
-}
-
-.tasks-section h4 {
-  margin: 0 0 14px 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.task-item {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.task-input {
-  flex: 1;
-  padding: 7px 10px;
+.mission-input {
+  width: 100%;
+  min-height: 160px;
+  padding: 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.7;
   color: var(--text);
-  background: var(--surface);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  background: var(--surface-subtle);
+  resize: vertical;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
 }
 
-.task-input:focus {
+.mission-input:focus {
   outline: none;
   border-color: var(--accent);
+  background-color: var(--surface);
   box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.remove-task-btn {
-  background: none;
-  border: 1px solid var(--danger);
-  color: var(--danger);
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s, color 0.15s;
-}
-
-.remove-task-btn:hover {
-  background-color: var(--danger);
-  color: white;
-}
-
-.add-task-btn {
-  width: 100%;
-  padding: 8px;
-  background: none;
-  border: 1.5px dashed var(--border-strong);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
-}
-
-.add-task-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background-color: var(--accent-soft);
 }
 
 .modal-footer {
@@ -221,10 +133,4 @@
 .cancel-btn:hover {
   background-color: var(--surface-hover);
   border-color: var(--border-strong);
-}
-
-@media (max-width: 768px) {
-  .areas-grid {
-    grid-template-columns: 1fr;
-  }
 }

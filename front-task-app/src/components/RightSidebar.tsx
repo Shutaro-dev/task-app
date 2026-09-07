@@ -3,16 +3,32 @@ import styles from './RightSidebar.module.css';
 
 interface RightSidebarProps {
   weeklyNotes: string;
+  missionStatement: string;
   onUpdateWeeklyNotes: (notes: string) => void;
+  onOpenMissionSettings: () => void;
 }
 
-function RightSidebar({ weeklyNotes, onUpdateWeeklyNotes }: RightSidebarProps) {
+function RightSidebar({ weeklyNotes, missionStatement, onUpdateWeeklyNotes, onOpenMissionSettings }: RightSidebarProps) {
   const updateNotes = (event: ChangeEvent<HTMLTextAreaElement>) => {
     onUpdateWeeklyNotes(event.target.value);
   };
 
   return (
     <div className={styles['right-sidebar']}>
+      <div className={styles['mission-summary']}>
+        <div className={styles['mission-header']}>
+          <h3>Mission Statement</h3>
+          <i className={`bi bi-pencil ${styles['edit-mission-btn']}`} onClick={onOpenMissionSettings}></i>
+        </div>
+        {missionStatement ? (
+          <p className={styles['mission-text']} onClick={onOpenMissionSettings}>{missionStatement}</p>
+        ) : (
+          <button onClick={onOpenMissionSettings} className={styles['mission-empty-btn']}>
+            + ミッションステートメントを設定
+          </button>
+        )}
+      </div>
+
       <div className={styles['notes-section']}>
         <h3>Weekly Notes</h3>
         <textarea

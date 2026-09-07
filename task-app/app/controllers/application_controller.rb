@@ -1,8 +1,20 @@
 class ApplicationController < ActionController::API
+  include ActionController::Cookies
+
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ActionDispatch::Http::Parameters::ParseError, with: :render_bad_request
 
   private
+
+  def current_user
+    @current_user ||= User.find_by(id: session[:user_id])
+  end
+
+  def authenticate_user!
+    return if current_user
+
+    render json: { error: "ログインが必要です" }, status: :unauthorized
+  end
 
   # @RequestBody を使う Spring のエンドポイントは Content-Type 未指定/不正だと 415 を返す。
   # 同じ挙動にするため、JSON ボディを要求するアクションでは明示的にチェックする。

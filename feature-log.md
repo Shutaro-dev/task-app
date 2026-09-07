@@ -87,3 +87,44 @@
 - **テスト**: JUnit の Service/Controller テスト(計53ケース相当)を `test/controllers/api/roles_controller_test.rb`・`tasks_controller_test.rb` のリクエストテスト(Minitest、実DB使用)として移植し、全件成功を確認。Rails のトランザクショナルテストにより各テスト後は自動ロールバックされる
 - **ローカル環境の問題を解消**: 開発機ではネイティブ(Homebrew)PostgreSQLがポート5432を専有しており、`my-postgres` Dockerコンテナ(バックエンド用DB)に接続できない状態だった。コンテナをホスト側ポート **5433** に再マッピングして解消(既存のデータボリュームはそのまま引き継ぎ、格納されていた実データ(ロール「エンジニア」等)は損失なし)
 - ドキュメント更新: `CLAUDE.md`・`startup-guide.md`・`reset-db.sh`・`apply-schema.sh`・`.claude/commands/{start,reset-db,test}.md` を Rails 版の手順・ポート番号(5433)に更新
+
+## 2026-09-07
+
+### フロントエンド
+
+#### デザイン全面刷新
+- `front-task-app` 全体のCSSを1px単位で見直し、シンプルでモダンな見た目に刷新。TSX(ロジック・DOM構造・機能)は無変更
+- `index.css` にデザイントークン(色・角丸・影・余白のスケール、`--bg`/`--surface`/`--accent`等のCSS変数)を導入し、全 `*.module.css` から参照する形に統一
+- Inter フォントを `index.html` から読み込み、システムフォントのフォールバックと併用
+- ボタン/inputのフォーカスリング、スクロールバー、SortableJSのゴースト表示(`.role-ghost`/`.task-ghost`)も刷新
+- カレンダーのタイムライン計算(`hourHeight = 26`、タイムライン高さ`520px`、時間軸カラム幅`70px`)に直結する数値は`WeeklyCalendar.tsx`のJS実装と一致させたまま完全維持し、ドラッグ・リサイズの挙動に影響がないことを確認
+- `npm run build` 成功、Playwrightでの手動スモークテスト(ロール展開、タスクのドラッグ、リストモード切替、カラーピッカー、Sharpen the Saw設定モーダル)で挙動に変化がないことを確認
+
+#### リストモードのメモ列ズレ修正
+- リストモードで `time-column-header`/`time-slots-column`(時間軸の70px列)が非表示になる一方、メモ行の `notes-time-label`(「Notes」ラベルの70px列)だけ常に表示されたままだったため、メモ入力欄が日付列に対して70px右にズレていた
+- `WeeklyCalendar.tsx` で `notes-time-label` も `isListMode` 時は非表示にし、ヘッダー行・タイムライン行と同じ列グリッドに揃えて解消
+
+#### ミッションステートメント機能を追加
+- 右サイドバー最上部(Weekly Notesの上)に Mission Statement の要約パネルを新設
+  - 未設定時は「+ ミッションステートメントを設定」ボタンを表示
+  - 設定済みの場合は3行までのプレビュー(アクセントカラーの左ボーダー付きの引用風カード)を表示し、クリックで編集モーダルを開く
+  - 当初は左サイドバー最上部(Sharpen the Sawの上)に配置していたが、週次の振り返り・計画という性質が近い Weekly Notes の隣(右サイドバー)に移設
+- 編集は `SharpenTheSawSettings` と同様の独立モーダルで行う(新規 `MissionStatementModal.tsx` / `MissionStatementModal.module.css`)
+- データは `Dashboard.tsx` のトップレベル state(`missionStatement: string`)として保持し、`localStorage`(キー: `fourth-gen-time-management`)に他の永続データ(`roles`・`sharpenTheSawAreas`等)と同じ自動保存 `useEffect` で保存・復元
+- 既存の保存データに `missionStatement` が無い場合(過去バージョンのデータ)は空文字にフォールバックする後方互換処理を追加
+- `CLAUDE.md` の状態管理の説明(自動保存 `useEffect` の依存配列)・コンポーネント構成図・実装済み機能表を更新
+
+#### ログイン認証機能を追加
+- **バックエンド**: `User` モデル(`has_secure_password` + bcrypt)、`users` テーブルを追加。API onlyモードで省かれる Cookie/セッションミドルウェアを `config/application.rb` で明示的に有効化し、Rails標準の Cookie セッション認証を実装
+  - `POST /api/users`(サインアップ、成功時はログイン状態になる)、`GET/POST/DELETE /api/session`(状態確認・ログイン・ログアウト)を新設
+  - `roles`・`tasks` に `user_id` を追加し、`RolesController`/`TasksController` を `authenticate_user!` 必須にした上で `current_user` にスコープ(他ユーザーのIDを指定すると404)。`week_data` にも `user_id` と `(user_id, week_start)` の複合ユニーク制約を追加(APIは未実装のため先行対応)
+  - 既存の実データ(ログイン導入前に作られたロール等)は失わないよう seed の `dev@example.com` ユーザーに紐付け直し
+  - 副次的に見つかった pre-existing のDBドリフト(`roles`テーブルのシーケンス名不一致で `bin/rails test` が全滅する不具合)を修正
+  - `roles_controller_test.rb`/`tasks_controller_test.rb` を認証必須の挙動に追随させ、`sessions_controller_test.rb`/`users_controller_test.rb` を新規追加。全73件成功
+- **フロントエンド**: `AuthContext`/`authService.ts` で Cookie 認証状態(`user`/`isLoading`/`login`/`signup`/`logout`)を管理し、`axios.defaults.withCredentials = true` をグローバル設定
+  - 未ログイン時は `AuthPage`(ログイン/サインアップ切り替え)を表示、ログイン後は `Dashboard` を表示。`Dashboard` は `key={user.id}` で別アカウント切り替え時に再マウントされる
+  - `localStorage` キーをユーザーIDで分離(`fourth-gen-time-management:{userId}`)し、同一ブラウザで複数アカウントを使っても週次データが混ざらないようにした
+  - ログアウトボタンは `LeftSidebar` 最下部のアカウントバーに配置。当初 `position: fixed` の浮きバッジで実装したところ、実機確認で `WeeklyCalendar` の PDF Download ボタンや `RightSidebar` の Mission Statement 見出しと重なるバグを発見し、`.roles-list`(`flex:1`)の下に通常のレイアウトフローで組み込む形に修正(ロールが増えてスクロールしても常に最下部に固定表示される)
+  - Playwrightでの手動スモークテスト(未ログイン表示・サインアップ・ログアウト・誤パスワードエラー・ロール多数時のレイアウト崩れ確認)を実施
+- 開発用ログイン: `db/seeds.rb` で `dev@example.com` / `password123` を作成
+- `CLAUDE.md` に認証の仕組み・新規API・DBスキーマ変更・注意事項を反映

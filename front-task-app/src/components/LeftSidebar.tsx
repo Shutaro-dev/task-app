@@ -31,6 +31,8 @@ interface LeftSidebarProps {
   onReorderTasks: (roleId: string, reorderedTasks: Task[]) => void;
   onToggleTaskPermanent: (roleId: string, taskId: string, currentlyPermanent: boolean) => void;
   onReorderRoles: (newRoles: Role[]) => void;
+  userLabel?: string;
+  onLogout?: () => void;
 }
 
 function LeftSidebar({
@@ -50,6 +52,8 @@ function LeftSidebar({
   onReorderTasks,
   onToggleTaskPermanent,
   onReorderRoles,
+  userLabel,
+  onLogout,
 }: LeftSidebarProps) {
   const [showAddRole, setShowAddRole] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
@@ -520,6 +524,13 @@ function LeftSidebar({
           ))}
         </div>
       </div>
+
+      {userLabel && onLogout && (
+        <div className={styles['account-bar']} onClick={stop}>
+          <span className={styles['account-email']} title={userLabel}>{userLabel}</span>
+          <button className={styles['logout-btn']} onClick={onLogout}>ログアウト</button>
+        </div>
+      )}
     </div>
   );
 }

@@ -510,7 +510,8 @@ function WeeklyCalendar({
 
         {/* 常に固定表示されるノートセクション */}
         <div className={styles['calendar-notes-section']}>
-          <div className={styles['notes-time-label']}>Notes</div>
+          {/* リストモードでは時間軸列が無いため、他の行と列幅を揃えるためにこのラベル列も非表示にする */}
+          {!isListMode && <div className={styles['notes-time-label']}>Notes</div>}
           {days.map((_day, dayIndex) => (
             <div key={dayIndex} className={styles['day-notes']}>
               <textarea

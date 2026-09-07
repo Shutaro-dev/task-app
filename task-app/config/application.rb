@@ -40,5 +40,10 @@ module TaskApp
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # ログイン認証を Cookie セッションで行うため、API only モードで省かれる
+    # cookies/session ミドルウェアを明示的に追加する。
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use ActionDispatch::Session::CookieStore, key: "_task_app_session", same_site: :lax
   end
 end
