@@ -29,6 +29,17 @@
   letter-spacing: 0.05em;
 }
 
+.mission-summary h3::before,
+.notes-section h3::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  background: var(--select);
+  vertical-align: middle;
+}
+
 .edit-mission-btn {
   padding: 4px;
   font-size: 13px;
@@ -45,14 +56,16 @@
 
 .mission-text {
   margin: 0;
-  font-size: 13px;
+  font-family: var(--font-serif);
+  font-size: 14.5px;
   font-style: italic;
+  font-weight: 500;
   color: var(--text);
-  line-height: 1.6;
+  line-height: 1.55;
   cursor: pointer;
   padding: 10px 12px;
-  background: var(--accent-soft);
-  border-left: 3px solid var(--accent);
+  background: var(--select-soft);
+  border-left: 3px solid var(--select);
   border-radius: var(--radius-xs);
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -62,7 +75,7 @@
 }
 
 .mission-text:hover {
-  background: var(--accent-soft-strong);
+  background: rgba(28, 109, 97, 0.24);
 }
 
 .mission-empty-btn {
@@ -78,9 +91,9 @@
 }
 
 .mission-empty-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background-color: var(--accent-soft);
+  border-color: var(--select);
+  color: var(--select);
+  background-color: var(--select-soft);
 }
 
 .notes-section {
@@ -135,6 +148,16 @@
   letter-spacing: 0.05em;
 }
 
+.info-section h4::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  background: var(--select);
+  vertical-align: middle;
+}
+
 .tips-list {
   margin: 0;
   padding-left: 16px;
@@ -148,5 +171,5 @@
 }
 
 .tips-list li::marker {
-  color: var(--accent);
+  color: var(--select);
 }

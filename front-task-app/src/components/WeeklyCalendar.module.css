@@ -49,8 +49,10 @@
 }
 
 .week-text {
-  font-size: 15px;
+  font-family: var(--font-serif);
+  font-size: 17px;
   font-weight: 600;
+  font-style: italic;
   letter-spacing: -0.01em;
   color: var(--text);
 }
@@ -278,7 +280,7 @@
 
 .list-task.selected {
   border-color: var(--select);
-  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.25);
+  box-shadow: 0 0 0 2px var(--select-soft);
 }
 
 .list-task.drag-over {
@@ -361,7 +363,7 @@
 
 .scheduled-task.selected {
   border-color: var(--select);
-  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.35);
+  box-shadow: 0 0 0 2px rgba(28, 109, 97, 0.4);
 }
 
 .task-content {
@@ -423,7 +425,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(15, 18, 26, 0.45);
+  background-color: rgba(34, 30, 23, 0.5);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
@@ -441,8 +443,10 @@
 
 .sleep-dialog h3 {
   margin: 0 0 18px 0;
-  font-size: 16px;
+  font-family: var(--font-serif);
+  font-size: 18px;
   font-weight: 600;
+  font-style: italic;
   color: var(--text);
 }
 
