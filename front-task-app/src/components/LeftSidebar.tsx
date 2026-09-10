@@ -33,6 +33,7 @@ interface LeftSidebarProps {
   onReorderRoles: (newRoles: Role[]) => void;
   userLabel?: string;
   onLogout?: () => void;
+  onStartTour?: () => void;
 }
 
 function LeftSidebar({
@@ -54,6 +55,7 @@ function LeftSidebar({
   onReorderRoles,
   userLabel,
   onLogout,
+  onStartTour,
 }: LeftSidebarProps) {
   const [showAddRole, setShowAddRole] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
@@ -322,7 +324,7 @@ function LeftSidebar({
   return (
     <div className={styles['left-sidebar']} onClick={closeColorPicker}>
       {/* ── Sharpen the Saw ────────────────────────────── */}
-      <div className={styles['sharpen-summary']}>
+      <div className={styles['sharpen-summary']} data-tour="sharpen-summary">
         <div className={styles['sharpen-header']}>
           <h3>Sharpen the Saw</h3>
           <i className={cx('bi', 'bi-gear', styles['settings-btn-small'])} onClick={onOpenSettings}></i>
@@ -350,7 +352,7 @@ function LeftSidebar({
       </div>
 
       {/* ── Roles section ─────────────────────────────── */}
-      <div className={styles['roles-section']}>
+      <div className={styles['roles-section']} data-tour="roles-section">
         <div className={styles['section-header']}>
           <h3>Roles and Goals</h3>
           <button onClick={openAddRole} className={styles['add-btn']}>Add Role</button>
@@ -528,6 +530,16 @@ function LeftSidebar({
       {userLabel && onLogout && (
         <div className={styles['account-bar']} onClick={stop}>
           <span className={styles['account-email']} title={userLabel}>{userLabel}</span>
+          {onStartTour && (
+            <button
+              className={styles['tour-btn']}
+              onClick={onStartTour}
+              title="使い方ツアーを見る"
+              aria-label="使い方ツアーを見る"
+            >
+              <i className="bi bi-signpost-split"></i>
+            </button>
+          )}
           <button className={styles['logout-btn']} onClick={onLogout}>ログアウト</button>
         </div>
       )}

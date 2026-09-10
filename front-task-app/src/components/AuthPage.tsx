@@ -23,8 +23,27 @@ function AuthPage() {
     setPasswordConfirmation('');
   };
 
+  // ブラウザ標準のフォームバリデーション(input要素のフォーカスが外れた瞬間などに
+  // ポップアップで出る)は入力途中でも割り込んで表示され唐突なので noValidate で止め、
+  // 送信時にのみ自前のエラー表示(styles.error)でまとめて出す
+  const validate = (): string | null => {
+    if (!email.trim()) return 'メールアドレスを入力してください。';
+    if (mode === 'signup') {
+      if (password.length < 8) return 'パスワードは8文字以上で入力してください。';
+      if (password !== passwordConfirmation) return 'パスワード(確認)が一致しません。';
+    } else if (!password) {
+      return 'パスワードを入力してください。';
+    }
+    return null;
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setError(null);
     setIsSubmitting(true);
     try {
@@ -67,7 +86,7 @@ function AuthPage() {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
+        <form onSubmit={handleSubmit} className={styles.form} noValidate>
           {mode === 'signup' && (
             <label className={styles.field}>
               <span>名前(任意)</span>

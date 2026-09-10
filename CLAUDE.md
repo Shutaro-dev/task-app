@@ -81,6 +81,8 @@ WeekData      // weekStart, scheduledTasks, dayNotes, weeklyNotes, temporaryTask
 
 `roleService.ts` / `taskService.ts` にAPIクライアント関数を定義するが、現在は Dashboard.tsx から直接呼ばれていない。API 統合時はここに関数を追加し、Dashboard 側のハンドラ関数から呼び出す。
 
+バックエンドのオリジンは `apiBase.ts` の `API_ORIGIN`（環境変数 `VITE_API_BASE_URL` で上書き可能、未設定時は `http://localhost:8080` にフォールバック）に集約しており、`authService.ts`/`roleService.ts`/`taskService.ts` はここから `BASE` を組み立てる。本番ビルド時はデプロイ先のバックエンドURLを `.env`（`.env.example` 参照）で設定する。
+
 ---
 
 ## バックエンド
@@ -92,8 +94,8 @@ WeekData      // weekStart, scheduledTasks, dayNotes, weeklyNotes, temporaryTask
 - **Ruby on Rails 8.1 / Ruby 3.3(`--api` モード）**
 - **ActiveRecord**: `app/models/role.rb` / `app/models/task.rb` / `app/models/user.rb`（DB エンティティ = MyBatis の model + mapper 相当を1つに統合）
 - **PostgreSQL**: DB名 `task_app`, user: `user`, password: `password`, ホスト側ポートは **5433**（後述）
-- **CORS**: `config/initializers/cors.rb` で `http://localhost:5173` を許可（`rack-cors` gem、`credentials: true` でセッションCookieを送受信可能にしている）
-- **認証**: `has_secure_password`（bcrypt）+ Rails の Cookie セッション。`config/application.rb` で API only モードでは省かれる `ActionDispatch::Cookies` / `ActionDispatch::Session::CookieStore` を明示的に追加している。`ApplicationController#current_user` / `#authenticate_user!` を各コントローラーの `before_action` で使う
+- **CORS**: `config/initializers/cors.rb` で許可オリジンを設定（`rack-cors` gem、`credentials: true` でセッションCookieを送受信可能にしている）。`ALLOWED_ORIGINS`環境変数（カンマ区切り）で上書き可能で、未設定時は開発用に`http://localhost:5173`のみ許可
+- **認証**: `has_secure_password`（bcrypt）+ Rails の Cookie セッション。`config/application.rb` で API only モードでは省かれる `ActionDispatch::Cookies` / `ActionDispatch::Session::CookieStore` を明示的に追加している。`ApplicationController#current_user` / `#authenticate_user!` を各コントローラーの `before_action` で使う。セッションCookieの`same_site`は本番（フロントエンドと別ドメインになる想定）では`:none`+`secure: true`、開発では`:lax`を`Rails.env.production?`で切り替えている（`:lax`のままだと本番のクロスサイトXHRにCookieが付与されずログインが機能しないため）
 
 ### ディレクトリ構成
 

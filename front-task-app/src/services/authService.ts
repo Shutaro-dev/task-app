@@ -1,7 +1,8 @@
 import axios from 'axios'
 import type { User } from '../types'
+import { API_ORIGIN } from './apiBase'
 
-const BASE = 'http://localhost:8080/api'
+const BASE = `${API_ORIGIN}/api`
 
 export interface SignupInput {
   email: string

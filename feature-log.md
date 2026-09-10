@@ -128,3 +128,36 @@
   - Playwrightでの手動スモークテスト(未ログイン表示・サインアップ・ログアウト・誤パスワードエラー・ロール多数時のレイアウト崩れ確認)を実施
 - 開発用ログイン: `db/seeds.rb` で `dev@example.com` / `password123` を作成
 - `CLAUDE.md` に認証の仕組み・新規API・DBスキーマ変更・注意事項を反映
+
+#### 新規登録ユーザー向けオンボーディングツアーを追加
+- サインアップ直後だけ自動起動する、スポットライト+吹き出し形式の機能紹介ツアーを新設(通常のログインでは起動しない)
+- `src/onboarding/tourSteps.ts` に7ステップを定義: 導入 → Roles and Goals → Sharpen the Saw → カレンダーへのドラッグ&ドロップ → リスト表示切替 → ミッションステートメント → 終了
+- `src/components/OnboardingTour.tsx`/`.module.css` が本体。`box-shadow: 0 0 0 9999px`のスプレッドでスポットライト(暗幕に穴を開ける定番テクニック)を実現し、対象要素の矩形から吹き出しの表示位置を計算してビューポート内にクランプする。戻る/次へ/スキップ、Escで閉じる・矢印キーで前後移動、`role="dialog"`+ステップ切り替え時のフォーカス移動、`prefers-reduced-motion`時のアニメーション無効化に対応
+- ツアー中は全画面オーバーレイ(`pointer-events: auto`)が背後のクリックを吸収するため、誤操作でロール追加やタスク削除などが走らない
+- 各ステップの対象要素は `LeftSidebar`(`roles-section`/`sharpen-summary`)・`WeeklyCalendar`(`calendar-grid`/`list-mode-toggle`)・`RightSidebar`(`mission-summary`)に付与した `data-tour` 属性で特定
+- `AuthContext` に `justSignedUp`/`consumeJustSignedUp` を追加。`signup()` 成功時のみ true になり、`Dashboard` がマウント時に一度だけ消費してツアーを起動する(ページ再読み込みや別ログインでは再起動しない、一過性のReact state)
+- いつでも見返せるよう `LeftSidebar` のアカウントバーに「使い方ツアーを見る」ボタン(`bi-signpost-split`)を追加し、手動でも再生可能にした
+- UI文言は既存の「紙とインクの編集的なトーン」に合わせ、進捗バーは罫線風のヘアラインで表現
+- 実装前に一般的なオンボーディングUXのベストプラクティス(コーチマーク+スポットライト、いつでもスキップ可能にする、ステップ数を絞る等)を調査した上で設計
+- Playwright(`chromium`)でサインアップ→全7ステップの遷移・戻るボタン・スキップ(Xボタン/Escキー)・完了後のダッシュボード操作性・アカウントバーからの手動再生・既存ユーザーの通常ログイン時に自動起動しないことを実機確認
+
+### 共通
+
+#### デプロイ品質の調査とバックエンド接続まわりの修正
+- デプロイ可能な品質か調査したところ、本番デプロイ後にバックエンド接続が機能しなくなる不具合を3件発見・修正した
+- **フロントエンドのAPI接続先が決め打ちだった不具合**: `authService.ts`/`roleService.ts`/`taskService.ts` の3ファイルすべてで `const BASE = 'http://localhost:8080/...'` とハードコードされており、どこにデプロイしてもユーザー自身のPCの`localhost:8080`を叩こうとして必ず失敗する状態だった。新設の `src/services/apiBase.ts`(`API_ORIGIN`、環境変数 `VITE_API_BASE_URL` で上書き可能・未設定時は `http://localhost:8080` にフォールバック)に接続先を集約し、3ファイルはそこから `BASE` を組み立てるように修正。`.env.example` を追加し、`.gitignore` で実際の `.env` はコミットされないようにした
+- **CORSが本番フロントエンドのオリジンを許可していなかった不具合**: `config/initializers/cors.rb` が `http://localhost:5173` 固定だったため、デプロイ後のフロントエンドドメインからのリクエストが常にCORSでブロックされる状態だった。`ALLOWED_ORIGINS` 環境変数(カンマ区切りで複数オリジン指定可)で上書きできるようにし、未設定時のみ従来通り `http://localhost:5173` にフォールバックする
+- **本番でのクロスサイト構成だとログインが機能しない不具合**: セッションCookieが `same_site: :lax` 固定だったため、フロントエンドとバックエンドが別ドメインにデプロイされるクロスサイト構成では、ログインのSet-Cookie自体は成功してもその後のXHRにCookieが付与されず、常に未ログイン扱いになる状態だった。`config/application.rb` で `Rails.env.production?` により本番のみ `same_site: :none, secure: true` に切り替え(開発は従来通り `:lax`)
+- `CLAUDE.md`・`startup-guide.md` に本番デプロイ時に設定が必要な環境変数(`RAILS_MASTER_KEY`・`DATABASE_URL`・`ALLOWED_ORIGINS`・`VITE_API_BASE_URL`)を追記
+- 検証: `bundle exec bundler-audit`(gemの既知脆弱性0件)、`bin/rails test`(73件成功)、`tsc -b --noEmit`、`vite build`(`VITE_API_BASE_URL`指定時にビルド成果物へ正しく埋め込まれ`localhost`文字列が残らないことを確認)、`RAILS_ENV=production` での `ActionDispatch::Session::CookieStore` 実際の設定値(`same_site: :none, secure: true`)を実機確認
+
+#### 残課題3点の解消(バンドルサイズ・Hostヘッダー許可・本番seed事故防止)
+- **JSバンドルの遅延分割**: `Dashboard.tsx` の `html2canvas`/`jspdf` の静的importを、PDFダウンロードボタン押下時のみ動的import(`import('html2canvas')`/`import('jspdf')`)する形に変更。メイン chunk が 928KB→334KB(gzip 286KB→110KB)に縮小し、`vite build` の「500KBを超えるchunkがある」警告も解消。実機(Playwright)でPDFダウンロードが遅延import後も従来通り動作することを確認
+- **`config.hosts` のハードニング**: `config/environments/production.rb` に `RAILS_ALLOWED_HOSTS` 環境変数(カンマ区切り)を追加。未設定の間は `config.hosts` に何も追加せず(=制限なし)、デプロイ先ドメイン確定前のデプロイがHost Header不一致で落ちることはない。ドメインが決まったら設定することでDNSリバインディング対策を有効化できる。あわせてヘルスチェック(`/up`)のHost検証除外(`config.host_authorization`)を明示化
+- **本番DBへの誤ったdb:seed実行を防止**: `db/seeds.rb` の先頭に、`Rails.env.production?` かつ `ALLOW_PRODUCTION_SEED=true` が明示指定されていない場合は `raise` して処理を止めるガードを追加。既知の認証情報(`dev@example.com`/`password123`)が本番DBに誤って作成されるのを防ぐ
+- 検証: `tsc -b --noEmit`・`bin/rails test`(73件成功)・`vite build`(chunk構成とサイズを確認)に加え、`RAILS_ENV=production` で `RAILS_ALLOWED_HOSTS` 未設定/設定時それぞれの `config.hosts` の値、および `db:seed` がopt-inなしでは`RuntimeError`で止まり`ALLOW_PRODUCTION_SEED=true`指定時は通ることを実機確認
+
+#### PDFダウンロードの余白解消(ページサイズを画面ぴったりに)
+- 従来は固定の A4 サイズに収まるよう画像を等比縮小して中央配置していたため、ダッシュボードの縦横比と A4 の縦横比が一致せず上下または左右に白い余白ができていた
+- `Dashboard.tsx` の `downloadPdf` を、PDFのページサイズ自体をキャプチャした内容(`html2canvas`の出力)のアスペクト比に合わせて作成する方式に変更(`jsPDF` の `format` にキャプチャ画像から算出した `[pageWidth, pageHeight]`(pt換算)を渡し、画像をページ全面(0,0)〜(pageWidth,pageHeight)に敷き詰める)。向き(`orientation`)は算出した幅高さの大小で自動判定
+- 検証: Playwright + `pdf-lib` で実際にダウンロードしたPDFのページサイズを読み取り、ダッシュボードのDOMサイズとアスペクト比が完全一致(例: 1440×900px → 1080×675pt、いずれも比率1.6)することを確認。余白なく画面いっぱいのPDFになる

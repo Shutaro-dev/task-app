@@ -5,7 +5,7 @@ import styles from './App.module.css'
 import './index.css'
 
 function AppContent() {
-  const { user, isLoading, logout } = useAuth()
+  const { user, isLoading, justSignedUp, consumeJustSignedUp, logout } = useAuth()
 
   if (isLoading) {
     return <div className={styles.loadingScreen}>読み込み中...</div>
@@ -23,6 +23,8 @@ function AppContent() {
       storageKey={`fourth-gen-time-management:${user.id}`}
       userLabel={user.name || user.email}
       onLogout={logout}
+      startOnboarding={justSignedUp}
+      onOnboardingStarted={consumeJustSignedUp}
     />
   )
 }

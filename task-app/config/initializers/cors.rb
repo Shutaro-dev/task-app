@@ -5,10 +5,14 @@
 #
 # Spring Boot 版の WebConfig#addCorsMappings と同じ設定
 # (すべてのエンドポイントに対して http://localhost:5173 からのアクセスを許可)
+#
+# 本番では ALLOWED_ORIGINS(カンマ区切り)にデプロイ先フロントエンドのオリジンを設定する。
+# 未設定時はローカル開発用のデフォルトにフォールバックする。
+allowed_origins = ENV.fetch("ALLOWED_ORIGINS", "http://localhost:5173").split(",").map(&:strip)
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins "http://localhost:5173"
+    origins(*allowed_origins)
 
     resource "*",
       headers: :any,

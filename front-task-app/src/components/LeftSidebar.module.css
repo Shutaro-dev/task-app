@@ -221,6 +221,24 @@
   white-space: nowrap;
 }
 
+.tour-btn {
+  flex-shrink: 0;
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background-color: var(--surface);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+
+.tour-btn:hover {
+  color: var(--accent);
+  background-color: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
 .logout-btn {
   flex-shrink: 0;
   padding: 4px 10px;

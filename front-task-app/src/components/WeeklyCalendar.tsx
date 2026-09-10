@@ -397,7 +397,7 @@ function WeeklyCalendar({
           </div>
           <button onClick={nextWeek} className={styles['nav-btn']}>›</button>
         </div>
-        <label className={styles['list-mode-toggle']}>
+        <label className={styles['list-mode-toggle']} data-tour="list-mode-toggle">
           <input type="checkbox" checked={isListMode} onChange={() => onToggleListMode()} />
           <span className={styles['toggle-slider']}></span>
           <span className={styles['toggle-label']}>リスト表示</span>
@@ -405,7 +405,7 @@ function WeeklyCalendar({
         <button className={styles['pdf-btn']} onClick={(e) => { e.stopPropagation(); emitDownload(); }}>PDF Download</button>
       </div>
 
-      <div className={styles['calendar-content']}>
+      <div className={styles['calendar-content']} data-tour="calendar-grid">
         {/* 常に固定表示されるヘッダー行 */}
         <div className={styles['calendar-day-headers']}>
           {!isListMode && <div className={styles['time-column-header']}></div>}

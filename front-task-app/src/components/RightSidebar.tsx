@@ -15,7 +15,7 @@ function RightSidebar({ weeklyNotes, missionStatement, onUpdateWeeklyNotes, onOp
 
   return (
     <div className={styles['right-sidebar']}>
-      <div className={styles['mission-summary']}>
+      <div className={styles['mission-summary']} data-tour="mission-summary">
         <div className={styles['mission-header']}>
           <h3>Mission Statement</h3>
           <i className={`bi bi-pencil ${styles['edit-mission-btn']}`} onClick={onOpenMissionSettings}></i>

@@ -1,0 +1,161 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  pointer-events: auto;
+}
+
+/* ターゲットが無いステップ(導入・終了)用の全面ディム */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(34, 30, 23, 0.6);
+}
+
+/* box-shadow の巨大な広がりでスポットライト以外を暗くする定番テクニック。
+   実際に穴を開けているわけではないが、.overlay 自体が pointer-events: auto
+   で画面全体のクリックを奪うため、ツアー中の誤操作は防がれる。 */
+.spotlight {
+  position: fixed;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 9999px rgba(34, 30, 23, 0.6);
+  outline: 1.5px solid var(--accent);
+  outline-offset: 2px;
+  transition: top 0.35s ease, left 0.35s ease, width 0.35s ease, height 0.35s ease;
+}
+
+.card {
+  position: fixed;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 20px 22px 18px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: tourCardIn 0.22s ease;
+}
+
+.card:focus {
+  outline: none;
+}
+
+@keyframes tourCardIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 進捗バーとスキップボタンを同じ行の flex に並べる(絶対配置だと吹き出しの
+   横幅やボタンサイズが変わった際にバーと重なるため、構造的に衝突しないようにする) */
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.skipBtn {
+  flex-shrink: 0;
+  padding: 4px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.skipBtn:hover {
+  color: var(--text);
+  background-color: var(--surface-hover);
+}
+
+.progressTrack {
+  flex: 1;
+  height: 2px;
+  background-color: var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.stepCount {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--text);
+}
+
+.body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+}
+
+.backBtn {
+  padding: 8px 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.backBtn:hover {
+  color: var(--text);
+}
+
+.nextBtn {
+  margin-left: auto;
+  padding: 9px 18px;
+  background-color: var(--accent);
+  color: var(--surface);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.nextBtn:hover {
+  background-color: var(--accent-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spotlight {
+    transition: none;
+  }
+  .card {
+    animation: none;
+  }
+}

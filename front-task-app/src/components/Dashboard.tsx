@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import type { Role, Task, SharpenTheSawArea, WeekData, ScheduledTask } from '../types';
 import LeftSidebar from './LeftSidebar';
 import WeeklyCalendar from './WeeklyCalendar';
 import RightSidebar from './RightSidebar';
 import SharpenTheSawSettings from './SharpenTheSawSettings';
 import MissionStatementModal from './MissionStatementModal';
+import OnboardingTour from './OnboardingTour';
+import { ONBOARDING_STEPS } from '../onboarding/tourSteps';
 import styles from './Dashboard.module.css';
 
 const DEFAULT_STORAGE_KEY = 'fourth-gen-time-management';
@@ -137,9 +137,20 @@ interface DashboardProps {
   // RightSidebar 上部に表示するアカウント情報 (未指定時は何も表示しない)
   userLabel?: string;
   onLogout?: () => void;
+  // サインアップ直後だけ true (App.tsx が AuthContext.justSignedUp をそのまま渡す)。
+  // マウント時に一度だけ読み、オンボーディングツアーの自動起動に使う
+  startOnboarding?: boolean;
+  // ツアーを起動したら呼び、AuthContext 側のフラグを消費済みにする(再マウントでの再起動防止)
+  onOnboardingStarted?: () => void;
 }
 
-function Dashboard({ storageKey = DEFAULT_STORAGE_KEY, userLabel, onLogout }: DashboardProps) {
+function Dashboard({
+  storageKey = DEFAULT_STORAGE_KEY,
+  userLabel,
+  onLogout,
+  startOnboarding = false,
+  onOnboardingStarted,
+}: DashboardProps) {
   // localStorage からの初回読み込みは一度だけ同期的に行う（Vue版の loadData() 相当）
   const initialDataRef = useRef<InitialState | null>(null);
   if (initialDataRef.current === null) {
@@ -155,6 +166,15 @@ function Dashboard({ storageKey = DEFAULT_STORAGE_KEY, userLabel, onLogout }: Da
   const [sharpenTheSawAreas, setSharpenTheSawAreas] = useState<SharpenTheSawArea[]>(initial.sharpenTheSawAreas);
   const [missionStatement, setMissionStatement] = useState<string>(initial.missionStatement);
   const [weekData, setWeekData] = useState<Map<string, WeekData>>(initial.weekData);
+  const [isTourActive, setIsTourActive] = useState(false);
+
+  // サインアップ直後の初回マウント時のみオンボーディングツアーを自動起動する
+  useEffect(() => {
+    if (!startOnboarding) return;
+    setIsTourActive(true);
+    onOnboardingStarted?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const draggedTaskRef = useRef<Task | null>(null);
   const dashboardRootRef = useRef<HTMLDivElement>(null);
@@ -407,6 +427,13 @@ function Dashboard({ storageKey = DEFAULT_STORAGE_KEY, userLabel, onLogout }: Da
     const root = dashboardRootRef.current;
     if (!root) return;
 
+    // html2canvas/jspdf はPDFダウンロード時にしか使わない重いライブラリ(gzip後で数百KB)なので、
+    // 初回バンドルに含めず実際に押されたときだけ動的importする
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ]);
+
     // 現在のスタイル・スクロール位置を保存
     const scrollX = window.scrollX;
     const scrollY = window.scrollY;
@@ -437,9 +464,10 @@ function Dashboard({ storageKey = DEFAULT_STORAGE_KEY, userLabel, onLogout }: Da
       // 要素の実サイズでキャプチャ
       const width = Math.max(root.scrollWidth, root.clientWidth);
       const height = Math.max(root.scrollHeight, root.clientHeight);
+      const captureScale = 2;
 
       const canvas = await html2canvas(root, {
-        scale: 2,
+        scale: captureScale,
         useCORS: true,
         backgroundColor: '#ffffff',
         width,
@@ -452,21 +480,19 @@ function Dashboard({ storageKey = DEFAULT_STORAGE_KEY, userLabel, onLogout }: Da
 
       const imgData = canvas.toDataURL('image/png');
 
-      // ページ向きをコンテンツのアスペクト比で自動選択
-      const isLandscape = canvas.width >= canvas.height;
-      const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'pt', format: 'a4' });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
+      // 固定のA4に収めると縦横比の違いで余白が出るため、ページサイズ自体をキャプチャした
+      // 内容のアスペクト比に合わせ、画像をページ全面(0,0)〜(pageWidth,pageHeight)に敷き詰める
+      const PT_PER_PX = 0.75; // 96dpi基準のCSSピクセル→ポイント換算
+      const pageWidth = (canvas.width / captureScale) * PT_PER_PX;
+      const pageHeight = (canvas.height / captureScale) * PT_PER_PX;
 
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-      const renderWidth = imgWidth * ratio;
-      const renderHeight = imgHeight * ratio;
-      const offsetX = (pageWidth - renderWidth) / 2;
-      const offsetY = (pageHeight - renderHeight) / 2;
+      const pdf = new jsPDF({
+        orientation: pageWidth >= pageHeight ? 'landscape' : 'portrait',
+        unit: 'pt',
+        format: [pageWidth, pageHeight],
+      });
 
-      pdf.addImage(imgData, 'PNG', offsetX, offsetY, renderWidth, renderHeight);
+      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
       pdf.save('dashboard.pdf');
     } finally {
       // 元のtextarea要素を復元
@@ -502,6 +528,7 @@ function Dashboard({ storageKey = DEFAULT_STORAGE_KEY, userLabel, onLogout }: Da
         onReorderRoles={reorderRoles}
         userLabel={userLabel}
         onLogout={onLogout}
+        onStartTour={() => setIsTourActive(true)}
       />
 
       <WeeklyCalendar
@@ -541,6 +568,14 @@ function Dashboard({ storageKey = DEFAULT_STORAGE_KEY, userLabel, onLogout }: Da
           missionStatement={missionStatement}
           onClose={() => setShowMissionSettings(false)}
           onSave={updateMissionStatement}
+        />
+      )}
+
+      {isTourActive && (
+        <OnboardingTour
+          steps={ONBOARDING_STEPS}
+          onFinish={() => setIsTourActive(false)}
+          onSkip={() => setIsTourActive(false)}
         />
       )}
     </div>

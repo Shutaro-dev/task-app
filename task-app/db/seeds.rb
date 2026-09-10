@@ -4,6 +4,14 @@
 # (or created alongside the database with db:setup).
 #
 # 元の database_schema.sql の初期データ(INSERT文)と同内容
+#
+# 本番環境では dev@example.com / password123 という既知の認証情報を誤って作成しないよう、
+# 明示的な opt-in (ALLOW_PRODUCTION_SEED=true) が無い限り db:seed をブロックする。
+if Rails.env.production? && ENV["ALLOW_PRODUCTION_SEED"] != "true"
+  raise "本番環境での bin/rails db:seed はブロックされています。" \
+        "dev@example.com(既知のパスワード)を本番DBに作成する意図がある場合のみ、" \
+        "ALLOW_PRODUCTION_SEED=true を指定して再実行してください。"
+end
 
 SharpenTheSawArea = Class.new(ApplicationRecord) { self.table_name = "sharpen_the_saw_areas" } unless defined?(SharpenTheSawArea)
 

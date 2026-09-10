@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# 環境変数(.env.example のみコミットする)
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

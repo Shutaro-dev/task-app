@@ -57,11 +57,13 @@ Rails.application.configure do
   config.active_record.attributes_for_inspect = [ :id ]
 
   # Enable DNS rebinding protection and other `Host` header attacks.
-  # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
-  # ]
   #
-  # Skip DNS rebinding protection for the default health check endpoint.
-  # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  # デプロイ先ドメインが決まったら RAILS_ALLOWED_HOSTS(カンマ区切りで複数可)を設定するとホスト名を
+  # 制限できる。未設定の間は何も追加しない(=制限なし)ため、ドメイン確定前のデプロイがこの設定で
+  # 落ちることはない。ロードバランサー等のヘルスチェックは "/up" への generic な HTTP リクエストで
+  # 到達することが多く、Hostヘッダーがドメインと一致しないことがあるため常に除外しておく。
+  if (allowed_hosts = ENV["RAILS_ALLOWED_HOSTS"].presence)
+    config.hosts.concat(allowed_hosts.split(",").map(&:strip))
+  end
+  config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 end

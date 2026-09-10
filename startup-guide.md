@@ -177,3 +177,31 @@ bin/rails db:migrate
 ```bash
 RAILS_ENV=test bin/rails db:schema:load
 ```
+
+---
+
+## 7. 本番デプロイ時の環境変数
+
+フロントエンドとバックエンドを別ドメインにデプロイする場合、以下を必ず設定すること
+（未設定だとバックエンド接続・ログインがローカル開発環境でしか動かない）。
+
+### バックエンド（`task-app`）
+
+| 環境変数 | 内容 | 未設定時のデフォルト |
+|---|---|---|
+| `RAILS_MASTER_KEY` | `config/master.key` の値（`secret_key_base` の復号に必須） | なし（必須） |
+| `DATABASE_URL` | 本番DBの接続文字列 | なし（`database.yml` の `production` セクション参照） |
+| `ALLOWED_ORIGINS` | CORSで許可するフロントエンドのオリジン（カンマ区切りで複数可） | `http://localhost:5173` |
+
+`RAILS_ENV=production` では `config.force_ssl = true` によりHTTPS必須、かつセッションCookieは
+`same_site: :none` + `secure: true`(`config/application.rb`)になる。フロントエンドと別ドメインの
+クロスサイト構成でログインを機能させるために必須の設定なので、リバースプロキシ等でHTTPS終端すること。
+
+### フロントエンド（`front-task-app`）
+
+| 環境変数 | 内容 | 未設定時のデフォルト |
+|---|---|---|
+| `VITE_API_BASE_URL` | デプロイ先バックエンドのオリジン(例: `https://api.example.com`) | `http://localhost:8080` |
+
+`.env.example` を `.env` にコピーして値を設定し、`npm run build` する
+（Viteの環境変数はビルド時に埋め込まれるため、デプロイ環境ごとに再ビルドが必要）。

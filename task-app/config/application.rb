@@ -43,7 +43,14 @@ module TaskApp
 
     # ログイン認証を Cookie セッションで行うため、API only モードで省かれる
     # cookies/session ミドルウェアを明示的に追加する。
+    #
+    # 本番はフロントエンドとバックエンドが別ドメインになる想定(クロスサイト)のため、
+    # same_site: :none + secure: true が必須(:lax だとXHRにCookieが付与されずログインが機能しない)。
+    # 開発は同一オリジン相当(localhost同士)なので :lax のままで動く。
     config.middleware.use ActionDispatch::Cookies
-    config.middleware.use ActionDispatch::Session::CookieStore, key: "_task_app_session", same_site: :lax
+    config.middleware.use ActionDispatch::Session::CookieStore,
+      key: "_task_app_session",
+      same_site: Rails.env.production? ? :none : :lax,
+      secure: Rails.env.production?
   end
 end

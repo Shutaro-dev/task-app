@@ -1,6 +1,7 @@
 import axios from 'axios'
+import { API_ORIGIN } from './apiBase'
 
-const BASE = 'http://localhost:8080/api/tasks'
+const BASE = `${API_ORIGIN}/api/tasks`
 
 export async function updateTaskTitle(id: string, title: string): Promise<void> {
   await axios.put(`${BASE}/${id}`, { title })
