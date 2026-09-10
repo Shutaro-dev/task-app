@@ -106,7 +106,7 @@ module Api
 
     test "normal07: ロールが存在する場合200とtasks付きの一覧を返す" do
       role = Role.create!(user: @user, role_name: ROLE_NAME_TEST, color: COLOR_BLUE)
-      Task.create!(user: @user, role_id: role.role_id, title: "Task 1", is_permanent: false)
+      Task.create!(user: @user, role_id: role.role_id, title: "Task 1", is_permanent: true)
 
       get "/api/roles"
 
@@ -117,6 +117,17 @@ module Api
       assert_equal true, body[0]["isExpanded"]
       assert_equal COLOR_BLUE, body[0]["color"]
       assert_equal "Task 1", body[0]["tasks"][0]["title"]
+    end
+
+    test "normal07b: 一時タスク(isPermanent: false)はtasksに含まれない" do
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST)
+      Task.create!(user: @user, role_id: role.role_id, title: "Temp Task", is_permanent: false)
+
+      get "/api/roles"
+
+      assert_response :success
+      body = JSON.parse(response.body)
+      assert_equal [], body[0]["tasks"]
     end
 
     test "normal08: ロールが0件の場合200と空配列を返す" do
@@ -206,7 +217,7 @@ module Api
 
     test "normal16: 更新後のレスポンスに紐づくタスクが含まれる" do
       role = Role.create!(user: @user, role_name: ROLE_NAME_ORIGINAL)
-      Task.create!(user: @user, role_id: role.role_id, title: "Task A", is_permanent: false)
+      Task.create!(user: @user, role_id: role.role_id, title: "Task A", is_permanent: true)
 
       put "/api/roles/#{role.role_id}", params: { roleName: ROLE_NAME_UPDATED, isExpanded: true }.to_json, headers: json_headers
 
@@ -224,12 +235,23 @@ module Api
       assert_response :bad_request
     end
 
-    test "error07: roleNameが未指定のとき400を返す" do
-      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST)
+    test "normal17: roleNameを省略しisExpandedのみの部分更新ができる" do
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST, is_expanded: true)
 
-      put "/api/roles/#{role.role_id}", params: { isExpanded: true }.to_json, headers: json_headers
+      put "/api/roles/#{role.role_id}", params: { isExpanded: false }.to_json, headers: json_headers
 
-      assert_response :bad_request
+      assert_response :success
+      assert_equal ROLE_NAME_TEST, role.reload.role_name
+      assert_equal false, role.is_expanded
+    end
+
+    test "normal18: roleNameを省略しcolorのみの部分更新ができる" do
+      role = Role.create!(user: @user, role_name: ROLE_NAME_TEST, color: COLOR_BLUE)
+
+      put "/api/roles/#{role.role_id}", params: { color: COLOR_RED }.to_json, headers: json_headers
+
+      assert_response :success
+      assert_equal COLOR_RED, role.reload.color
     end
 
     test "error08: 存在しないIDを指定したとき404を返す" do

@@ -16,10 +16,10 @@ end
 SharpenTheSawArea = Class.new(ApplicationRecord) { self.table_name = "sharpen_the_saw_areas" } unless defined?(SharpenTheSawArea)
 
 [
-  { id: "Body", name: "Body", icon: "💪" },
-  { id: "Intelligence", name: "Intelligence", icon: "🧠" },
-  { id: "Social・Emotional", name: "Social・Emotional", icon: "❤️" },
-  { id: "Mental", name: "Mental", icon: "🙏" }
+  { id: "physical", name: "Physical", icon: "💪" },
+  { id: "mental", name: "Intellectual", icon: "🧠" },
+  { id: "social-emotional", name: "Social/Emotional", icon: "❤️" },
+  { id: "spiritual", name: "Spiritual", icon: "🙏" }
 ].each do |attrs|
   SharpenTheSawArea.find_or_create_by!(id: attrs[:id]) do |area|
     area.name = attrs[:name]

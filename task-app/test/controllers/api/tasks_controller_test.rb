@@ -8,6 +8,7 @@ module Api
     MAX_TITLE_LENGTH = 255
     NON_EXISTING_TASK_ID = 9_999_998
     NON_EXISTING_ROLE_ID = 9_999_999
+    WEEK_START = "2026-09-07"
 
     setup do
       Task.delete_all
@@ -21,13 +22,23 @@ module Api
     # ─────────────────────────────────────────────────────────────────
 
     test "normal01: isPermanent=falseのタスクを作成できる" do
-      post "/api/tasks", params: { roleId: @role.role_id, title: TITLE_TEMP, isPermanent: false }.to_json, headers: json_headers
+      post "/api/tasks",
+        params: { roleId: @role.role_id, title: TITLE_TEMP, isPermanent: false, weekStart: WEEK_START }.to_json,
+        headers: json_headers
 
       assert_response :created
       task = Task.first
       assert_equal TITLE_TEMP, task.title
       assert_equal @role.role_id, task.role_id
       assert_equal false, task.is_permanent
+      assert_equal WEEK_START, task.week_data.week_start.iso8601
+    end
+
+    test "normal01b: isPermanent=falseでweekStart未指定のとき400を返す" do
+      post "/api/tasks", params: { roleId: @role.role_id, title: TITLE_TEMP, isPermanent: false }.to_json, headers: json_headers
+
+      assert_response :bad_request
+      assert_equal 0, Task.count
     end
 
     test "normal02: isPermanent=trueのタスクを作成できる" do
@@ -46,7 +57,9 @@ module Api
     end
 
     test "normal04: 日本語タイトルで作成できる" do
-      post "/api/tasks", params: { roleId: @role.role_id, title: TITLE_JA, isPermanent: false }.to_json, headers: json_headers
+      post "/api/tasks",
+        params: { roleId: @role.role_id, title: TITLE_JA, isPermanent: false, weekStart: WEEK_START }.to_json,
+        headers: json_headers
 
       assert_response :created
       assert_equal TITLE_JA, Task.first.title
@@ -54,7 +67,9 @@ module Api
 
     test "normal05: 最大長タイトルで作成できる" do
       max_length_title = "T" * MAX_TITLE_LENGTH
-      post "/api/tasks", params: { roleId: @role.role_id, title: max_length_title, isPermanent: false }.to_json, headers: json_headers
+      post "/api/tasks",
+        params: { roleId: @role.role_id, title: max_length_title, isPermanent: false, weekStart: WEEK_START }.to_json,
+        headers: json_headers
 
       assert_response :created
       assert_equal max_length_title, Task.first.title
