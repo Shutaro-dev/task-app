@@ -161,3 +161,69 @@
 - 従来は固定の A4 サイズに収まるよう画像を等比縮小して中央配置していたため、ダッシュボードの縦横比と A4 の縦横比が一致せず上下または左右に白い余白ができていた
 - `Dashboard.tsx` の `downloadPdf` を、PDFのページサイズ自体をキャプチャした内容(`html2canvas`の出力)のアスペクト比に合わせて作成する方式に変更(`jsPDF` の `format` にキャプチャ画像から算出した `[pageWidth, pageHeight]`(pt換算)を渡し、画像をページ全面(0,0)〜(pageWidth,pageHeight)に敷き詰める)。向き(`orientation`)は算出した幅高さの大小で自動判定
 - 検証: Playwright + `pdf-lib` で実際にダウンロードしたPDFのページサイズを読み取り、ダッシュボードのDOMサイズとアスペクト比が完全一致(例: 1440×900px → 1080×675pt、いずれも比率1.6)することを確認。余白なく画面いっぱいのPDFになる
+
+## 2026-09-11
+
+### 共通
+
+#### 全データのDB永続化(localStorage運用からの完全移行)
+- これまでロール・タスク・週次スケジュール・日次/週次メモ・Sharpen the Saw・ミッションステートメントを含む主要データが`localStorage`のみに保存されており、`roles`/`tasks`テーブルとAPIは実装済みなのにフロントから未使用、`week_data`/`scheduled_tasks`/`day_notes`/`sharpen_the_saw_*`はAPI自体が存在しない状態だった。今回、足りないAPIを全て実装し、フロントエンドをDB運用に一本化した
+- 詳細なアーキテクチャは [ARCHITECTURE.md](ARCHITECTURE.md) を参照
+
+### バックエンド
+
+#### スキーマ変更(マイグレーション5件)
+- `users.mission_statement`(text)を追加
+- `scheduled_tasks.completed`(boolean, default false)を追加(リストモードの完了チェック用)
+- `tasks.week_data_id`(nullable FK, on_delete: :nullify)を追加。一時タスク(`is_permanent: false`)だけがその週の`week_data`に紐づき、永続タスクは常にNULL
+- `sharpen_the_saw_tasks.user_id`(NOT NULL FK)を追加。旧実装はこの列が無く全ユーザー共有になってしまうバグがあった(テーブルが空だったため安全に追加)
+- `sharpen_the_saw_areas`の既存シード値(`Body`/`Intelligence`/`Social・Emotional`/`Mental`、旧Spring版由来で移植時からフロントの`DEFAULT_SAW_AREAS`と不一致だった)を`physical`/`mental`/`social-emotional`/`spiritual`(名称`Physical`/`Intellectual`/`Social/Emotional`/`Spiritual`)に是正するデータ移行マイグレーションを追加。`db/seeds.rb`も同じ値に修正
+
+#### 新規コントローラ・ルーティング
+| メソッド | パス | 内容 |
+|---|---|---|
+| `GET`/`PUT` | `/api/mission_statement` | ミッションステートメントの取得・更新 |
+| `GET`/`PUT` | `/api/sharpen_the_saw_areas` | 4領域＋タスク取得、全領域まとめての一括diff保存(削除/更新/新規作成) |
+| `GET`/`PUT` | `/api/week_data/:week_start` | 週データ(無ければ自動作成)。`scheduledTasks`/`dayNotes`/`temporaryTasks`を含めて返す |
+| `POST` | `/api/week_data/:week_start/scheduled_tasks` | スケジュール済みタスク作成 |
+| `PUT`/`DELETE` | `/api/scheduled_tasks/:id` | 部分更新・削除 |
+| `PUT` | `/api/week_data/:week_start/day_notes/:day` | 日次メモ・睡眠時間のupsert(`updateDayNotes`/`updateSleepTime`両方をこの1本でカバー) |
+
+- 新規モデル: `WeekData`/`ScheduledTask`/`DayNote`/`SharpenTheSawArea`/`SharpenTheSawTask`(`week_data`関連は"week_data"がRailsの英語推論だと単数"WeekDatum"になってしまうため、全ての関連付けで`class_name: "WeekData"`を明示)
+- 既存`RolesController`の修正: `role_json`が返す`tasks`を永続タスクのみに絞るよう修正(一時タスクも同じ`tasks`テーブルに入るため)。`update`アクションの`roleName`必須チェックを緩和し、色・isExpandedだけの部分更新に対応(roleName/isExpanded/colorのいずれか1つも無い場合のみ400)。`create`アクションを`head :created`から作成したロールのJSONを返すよう変更(フロントが仮IDを本物のIDへ差し替えるために必要)
+- 既存`TasksController`の修正: `create`で`isPermanent: false`のとき`weekStart`を必須にし、対応する週の`week_data`へ`week_data_id`で紐づける。`update`でも`isPermanent`切替時に`week_data_id`を付け替え(永続化時はNULLに戻す)。`create`のレスポンスも`head :created`から作成したタスクのJSONを返すよう変更
+
+#### テスト
+- 新規5コントローラ分の統合テストを追加(`mission_statement_controller_test.rb`/`sharpen_the_saw_areas_controller_test.rb`/`week_data_controller_test.rb`/`scheduled_tasks_controller_test.rb`/`day_notes_controller_test.rb`)
+- 既存`roles_controller_test.rb`/`tasks_controller_test.rb`を、上記の仕様変更(部分更新の許可・tasksの永続タスクのみフィルタ・weekStart必須化)に合わせて修正
+- `test/test_helper.rb`に`sharpen_the_saw_areas`のマスタデータ投入を追加(`bin/rails test`が使う`db:test:prepare`はスキーマ構造のみロードしデータ移行マイグレーションの中身は実行しないため、テストDBには明示的な投入が必要だった)
+- 検証: `bin/rails test`(100件成功)。さらに開発DB(`dev@example.com`)に対して全新規エンドポイントをcurlで実行し、`psql`で`roles`/`tasks`/`scheduled_tasks`/`day_notes`/`week_data`に実データが入ることを直接確認(検証用データは作業後に削除)
+
+### フロントエンド
+
+#### サービス層の追加・拡張
+- 新規: `weekDataService.ts`(週データ本体・scheduled_tasks・day_notes)、`sharpenTheSawService.ts`、`missionStatementService.ts`、`migrationService.ts`(旧localStorageデータの一度限りのDB取り込み)
+- 拡張: `roleService.ts`(`fetchRoles`/`createRole`/`deleteRole`/`updateRoleName`/`updateRoleExpanded`を追加、`updateRoleColor`はroleName不要の部分更新に対応)、`taskService.ts`(`createTask`/`deleteTask`/`updateTask`に`weekStart`対応を追加)
+- 新規ユーティリティ`utils/debounce.ts`の`KeyedDebouncer`: カレンダーのドラッグ/リサイズ(mousemoveのたびに発火)やメモのキー入力のような高頻度更新を、キーごとにサーバー保存だけ400〜600ms間引く。同一キーへの連続呼び出しはマージ(`schedule`)、楽観的作成のID差し替えに追従する`rekey`、週切り替え/ログアウト時に保留分を即時確定する`flushAll`を持つ
+
+#### `Dashboard.tsx` の全面書き換え
+- 旧: `useState`のlazy initializerでlocalStorageを同期読み込み→巨大`useEffect`で全stateをlocalStorageへ毎回書き戻す構成
+- 新: マウント時に`GET /api/roles`+`/api/sharpen_the_saw_areas`+`/api/mission_statement`+`/api/week_data/:currentWeekKey`を並行取得して初期state構築。各ハンドラは「ローカルstateを楽観的に更新→対応するAPIを呼ぶ」に統一
+- 初回ログイン時の自動移行: マウント時、DBの`roles`が空かつブラウザに旧localStorageデータが残っている場合のみ`migrationService`がロール→タスク→SharpenTheSaw→ミッションステートメント→週データの順にDBへ取り込み、成功後にlocalStorageを削除する
+- 楽観的作成のID差し替え: `addRole`/`addTask`/カレンダーへのドロップ(`handleTaskDrop`)/コピー&ペースト(`addCopiedTask`)は仮ID(`temp-${Date.now()}`)で即時描画し、サーバー応答後に本物のIDへ置き換える(失敗時はロールバックしてエラーバナー表示)
+- 週の切り替え(`changeWeek`)は訪問済みの週だけをセッション内`Map`にキャッシュし、未訪問の週のみ`GET /api/week_data/:weekKey`を呼ぶ。切り替え前に保留中の書き込みを`flushAll()`で確定させる
+- `isListMode`(リスト表示モード)は端末ローカルな表示設定として`localStorage`に残した(DBに持たせるほどの価値が無い表示状態のため)。`currentWeek`(閲覧中の週)はリロードのたびに実際の「今週」から開始する仕様に変更(DBに保存する自然なカラムが無く、優先度も低いため)
+- ローディング画面(`isLoading`)・読み込み失敗画面(`loadError`)・保存失敗バナー(`saveError`、画面上部固定・×で閉じられる)を追加
+- 検証: `tsc --noEmit`・`vite build`が成功することを確認
+
+#### 上記実装の検証・不具合修正
+実装直後に改めてコードレビューし、以下を発見・修正した。
+
+- **`isListMode`の移行漏れ**: 新しい移行処理(`migrationService`)が旧localStorageの`isListMode`を読み取らず、新しい専用キーにも書き込んでいなかったため、既存ユーザーがアップグレード後にリスト表示設定を静かに失う状態だった。`migrationService.ts`に`readLegacyListMode`を追加し、`Dashboard.tsx`の`isListMode`初期化時にDB移行の完了を待たず同期的に旧データから復元し、新しい専用キーへ書き込むよう修正
+- **削除・構造変更系ハンドラのロールバック漏れ**: `deleteRole`/`deleteTask`/`handleTaskDeleted`/`toggleTaskPermanent`がAPI呼び出し失敗時にローカルstateを元に戻しておらず、画面上は削除・移動されたのにDB側は変更されていない(次回リロードまで気付けない)不整合が起きうる状態だった。各ハンドラで変更前のstateを保持し、失敗時に`setRoles`/`setWeekDataCache`/`setSharpenTheSawAreas`で復元するよう修正(`updateSharpenTheSawAreas`も同様に対応)
+- **`deleteRole`で一時タスクの参照が残る**: ロール削除時にscheduled_tasksはローカルキャッシュから除去していたが、削除したロールを参照する`temporaryTasks`(一時タスク)は除去しておらず、DB側はカスケード削除されるのにセッション内キャッシュでは残ってしまっていた。`temporaryTasks`も合わせて除去するよう修正
+- **並び替えの`sortOrder`計算バグ**: `reorderTasks`/`reorderRoles`で仮ID(サーバー未反映)の項目を`filter`してから`index`を採番していたため、リスト中に仮ID項目があると以降の項目の`sortOrder`がずれる状態だった。`map`で全項目の位置を確定させてから`filter`する順序に修正
+- **`ScheduledTasksController#create`のバリデーション不足**: 必須パラメータ(taskId/roleId/day/startTime/duration/title)が欠けたリクエストが、素のNOT NULL制約違反で500エラーになる状態だった。他のcreateアクションと同様に明示的な400チェックを追加(`day: 0`が`blank?`判定で弾かれないことをテストで確認)
+- **`RolesController#role_json`のN+1気味な非効率**: `role.tasks.select(&:is_permanent)`とRuby側でフィルタしていたため、一時タスクが週を重ねて増えるほど毎回のロール取得が重くなる作りだった。`role.tasks.where(is_permanent: true)`とSQL側の絞り込みに変更
+- **移行処理の頑健性不足**: 旧localStorageに削除済みロールへの参照など不整合データが含まれていると、その1週分の移行失敗で処理全体が例外停止し、かつ移行済みフラグが立たないため次回ログイン時に既に作成済みの分まで重複作成されうる状態だった。週ごとの移行を個別に`try/catch`し、参照先ロールが見つからない一時タスク/スケジュール済みタスクは(既存のタスク欠落時と同様に)ログを出してスキップするよう修正
+- 検証: `bin/rails test`(102件成功、新規2件追加)、`tsc --noEmit`・`vite build`成功、`/api/roles/reorder`を文字列IDでcurl実行しDBへ正しく反映されることを実機確認

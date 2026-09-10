@@ -17,10 +17,19 @@ module Api
       role = current_user.roles.find_by(role_id: role_id)
       raise ActiveRecord::RecordNotFound, "Role not found: #{role_id}" unless role
 
-      # taskId が指定されていても Spring 版と同じく無視し、常に新規作成する
-      current_user.tasks.create!(role_id: role.role_id, title: title, is_permanent: is_permanent)
+      week_data_id = nil
+      unless is_permanent
+        return render_week_start_required if params[:weekStart].blank?
 
-      head :created
+        week_data_id = current_user.week_data.find_or_create_by!(week_start: params[:weekStart]).id
+      end
+
+      # taskId が指定されていても Spring 版と同じく無視し、常に新規作成する
+      task = current_user.tasks.create!(
+        role_id: role.role_id, title: title, is_permanent: is_permanent, week_data_id: week_data_id
+      )
+
+      render json: task_json(task), status: :created
     end
 
     def update
@@ -31,7 +40,15 @@ module Api
       is_permanent = params[:isPermanent]
       return render_bad_request if title.blank? || is_permanent.nil?
 
-      task.update!(title: title, is_permanent: is_permanent)
+      attrs = { title: title, is_permanent: is_permanent }
+      if is_permanent
+        # 永続化する場合、それまでどの週の一時タスクだったかは切り離す
+        attrs[:week_data_id] = nil
+      elsif params[:weekStart].present?
+        attrs[:week_data_id] = current_user.week_data.find_or_create_by!(week_start: params[:weekStart]).id
+      end
+      task.update!(attrs)
+
       render json: task_json(task)
     end
 
@@ -54,6 +71,10 @@ module Api
 
     def render_bad_request
       render json: { error: "roleId, title and isPermanent are required" }, status: :bad_request
+    end
+
+    def render_week_start_required
+      render json: { error: "weekStart is required for temporary tasks" }, status: :bad_request
     end
 
     def task_json(task)

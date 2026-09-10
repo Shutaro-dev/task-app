@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_07_023510) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_10_151100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -40,6 +40,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_07_023510) do
   end
 
   create_table "scheduled_tasks", id: :serial, force: :cascade do |t|
+    t.boolean "completed", default: false, null: false
     t.datetime "created_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
     t.integer "day", null: false
     t.integer "duration", null: false
@@ -66,6 +67,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_07_023510) do
     t.datetime "created_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
     t.string "title", limit: 255, null: false
     t.datetime "updated_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.bigint "user_id", null: false
+    t.index ["user_id"], name: "index_sharpen_the_saw_tasks_on_user_id"
   end
 
   create_table "tasks", id: :serial, force: :cascade do |t|
@@ -76,13 +79,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_07_023510) do
     t.string "title", limit: 255, null: false
     t.datetime "updated_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
     t.bigint "user_id"
+    t.integer "week_data_id"
     t.index ["role_id"], name: "idx_tasks_role_id"
     t.index ["user_id"], name: "index_tasks_on_user_id"
+    t.index ["week_data_id"], name: "index_tasks_on_week_data_id"
   end
 
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", limit: 255, null: false
+    t.text "mission_statement"
     t.string "name", limit: 255
     t.string "password_digest", null: false
     t.datetime "updated_at", null: false
@@ -105,7 +111,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_07_023510) do
   add_foreign_key "scheduled_tasks", "tasks", name: "scheduled_tasks_task_id_fkey", on_delete: :cascade
   add_foreign_key "scheduled_tasks", "week_data", column: "week_data_id", name: "scheduled_tasks_week_data_id_fkey", on_delete: :cascade
   add_foreign_key "sharpen_the_saw_tasks", "sharpen_the_saw_areas", column: "area_id", name: "sharpen_the_saw_tasks_area_id_fkey", on_delete: :cascade
+  add_foreign_key "sharpen_the_saw_tasks", "users"
   add_foreign_key "tasks", "roles", primary_key: "role_id", name: "tasks_role_id_fkey", on_delete: :cascade
   add_foreign_key "tasks", "users"
+  add_foreign_key "tasks", "week_data", column: "week_data_id", on_delete: :nullify
   add_foreign_key "week_data", "users"
 end

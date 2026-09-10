@@ -7,38 +7,18 @@ import SharpenTheSawSettings from './SharpenTheSawSettings';
 import MissionStatementModal from './MissionStatementModal';
 import OnboardingTour from './OnboardingTour';
 import { ONBOARDING_STEPS } from '../onboarding/tourSteps';
+import { KeyedDebouncer } from '../utils/debounce';
+import * as roleService from '../services/roleService';
+import * as taskService from '../services/taskService';
+import * as weekDataService from '../services/weekDataService';
+import * as sharpenTheSawService from '../services/sharpenTheSawService';
+import * as missionStatementService from '../services/missionStatementService';
+import { migrateLegacyLocalStorageIfNeeded, readLegacyListMode } from '../services/migrationService';
 import styles from './Dashboard.module.css';
 
 const DEFAULT_STORAGE_KEY = 'fourth-gen-time-management';
 const ROLE_COLORS = ['#4a90d9', '#e67e22', '#27ae60', '#8e44ad', '#e74c3c', '#16a085'];
-
-const DEFAULT_ROLES: Role[] = [
-  {
-    id: '1',
-    name: 'Professional',
-    isExpanded: false,
-    tasks: [
-      { id: 't1', title: 'Review quarterly goals', roleId: '1', isPermanent: true },
-      { id: 't2', title: 'Team meeting preparation', roleId: '1', isPermanent: false },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Family',
-    isExpanded: false,
-    tasks: [
-      { id: 't3', title: 'Quality time with children', roleId: '2', isPermanent: true },
-      { id: 't4', title: 'Plan weekend activities', roleId: '2', isPermanent: false },
-    ],
-  },
-];
-
-const DEFAULT_SAW_AREAS: SharpenTheSawArea[] = [
-  { id: 'physical', name: 'Physical', icon: '💪', tasks: [] },
-  { id: 'mental', name: 'Intellectual', icon: '🧠', tasks: [] },
-  { id: 'social-emotional', name: 'Social/Emotional', icon: '❤️', tasks: [] },
-  { id: 'spiritual', name: 'Spiritual', icon: '🙏', tasks: [] },
-];
+const DEBOUNCE_MS = 500;
 
 function getStartOfWeek(date: Date): Date {
   const d = new Date(date);
@@ -61,86 +41,20 @@ function blankWeekData(weekStart: Date): WeekData {
   };
 }
 
-interface InitialState {
-  currentWeek: Date;
-  roles: Role[];
-  sharpenTheSawAreas: SharpenTheSawArea[];
-  missionStatement: string;
-  isListMode: boolean;
-  weekData: Map<string, WeekData>;
-}
-
-function loadInitialState(storageKey: string): InitialState {
-  const defaults: InitialState = {
-    currentWeek: getStartOfWeek(new Date()),
-    roles: DEFAULT_ROLES,
-    sharpenTheSawAreas: DEFAULT_SAW_AREAS,
-    missionStatement: '',
-    isListMode: false,
-    weekData: new Map<string, WeekData>(),
-  };
-
-  try {
-    const savedData = localStorage.getItem(storageKey);
-    if (!savedData) return defaults;
-    const parsed = JSON.parse(savedData);
-    const result: InitialState = { ...defaults };
-
-    if (parsed.currentWeek) {
-      result.currentWeek = new Date(parsed.currentWeek);
-    }
-
-    if (parsed.roles) {
-      result.roles = parsed.roles.map((r: any) => {
-        const seen = new Set<string>();
-        const tasks = (r.tasks ?? []).filter((t: any) => {
-          if (!t.isPermanent || seen.has(t.id)) return false;
-          seen.add(t.id);
-          return true;
-        });
-        return { ...r, tasks };
-      });
-    }
-
-    if (parsed.sharpenTheSawAreas) {
-      result.sharpenTheSawAreas = parsed.sharpenTheSawAreas;
-    }
-
-    if (typeof parsed.missionStatement === 'string') {
-      result.missionStatement = parsed.missionStatement;
-    }
-
-    if (typeof parsed.isListMode === 'boolean') {
-      result.isListMode = parsed.isListMode;
-    }
-
-    if (parsed.weekData) {
-      result.weekData = new Map(
-        parsed.weekData.map(([key, value]: [string, any]) => [
-          key,
-          { ...value, weekStart: new Date(value.weekStart) },
-        ])
-      );
-    }
-
-    return result;
-  } catch (error) {
-    console.warn('Failed to load data from localStorage:', error);
-    return defaults;
-  }
+function isTempId(id: string): boolean {
+  return id.startsWith('temp-');
 }
 
 interface DashboardProps {
-  // ログインユーザーごとに localStorage を分離するためのキー。App.tsx が
-  // ユーザーIDを含むキーを渡す(未指定時は共通キーのままの旧挙動)
+  // ログインユーザーごとにDBのデータを分離する必要はないが(Rails側でuser_idスコープ済み)、
+  // 旧localStorage運用時代のデータを見つけて取り込むためのキーとして引き続き使う
   storageKey?: string;
-  // RightSidebar 上部に表示するアカウント情報 (未指定時は何も表示しない)
+  // RightSidebar上部に表示するアカウント情報(未指定時は何も表示しない)
   userLabel?: string;
   onLogout?: () => void;
-  // サインアップ直後だけ true (App.tsx が AuthContext.justSignedUp をそのまま渡す)。
-  // マウント時に一度だけ読み、オンボーディングツアーの自動起動に使う
+  // サインアップ直後だけtrue。マウント時に一度だけ読み、オンボーディングツアーの自動起動に使う
   startOnboarding?: boolean;
-  // ツアーを起動したら呼び、AuthContext 側のフラグを消費済みにする(再マウントでの再起動防止)
+  // ツアーを起動したら呼び、AuthContext側のフラグを消費済みにする(再マウントでの再起動防止)
   onOnboardingStarted?: () => void;
 }
 
@@ -151,22 +65,74 @@ function Dashboard({
   startOnboarding = false,
   onOnboardingStarted,
 }: DashboardProps) {
-  // localStorage からの初回読み込みは一度だけ同期的に行う（Vue版の loadData() 相当）
-  const initialDataRef = useRef<InitialState | null>(null);
-  if (initialDataRef.current === null) {
-    initialDataRef.current = loadInitialState(storageKey);
-  }
-  const initial = initialDataRef.current;
+  const listModeStorageKey = `${storageKey}:list-mode`;
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [showSettings, setShowSettings] = useState(false);
   const [showMissionSettings, setShowMissionSettings] = useState(false);
-  const [isListMode, setIsListMode] = useState(initial.isListMode); // ON時はカレンダーを時間非表示のチェックリスト表示にする
-  const [currentWeek, setCurrentWeek] = useState<Date>(initial.currentWeek);
-  const [roles, setRoles] = useState<Role[]>(initial.roles);
-  const [sharpenTheSawAreas, setSharpenTheSawAreas] = useState<SharpenTheSawArea[]>(initial.sharpenTheSawAreas);
-  const [missionStatement, setMissionStatement] = useState<string>(initial.missionStatement);
-  const [weekData, setWeekData] = useState<Map<string, WeekData>>(initial.weekData);
+  const [isListMode, setIsListMode] = useState(() => {
+    try {
+      const stored = localStorage.getItem(listModeStorageKey);
+      if (stored !== null) return stored === 'true';
+      // 新キーが無ければ、DB移行がまだ済んでいない旧localStorageの値を読み(移行完了を待たない)、
+      // 新キーへ書き込んで以降のセッションでも保持されるようにする
+      const legacyValue = readLegacyListMode(storageKey);
+      if (legacyValue !== undefined) {
+        localStorage.setItem(listModeStorageKey, String(legacyValue));
+        return legacyValue;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
+  // リロードのたびに「今週」から始める(週の閲覧位置はDBに持たせるほどの価値が無い表示状態のため)
+  const [currentWeek, setCurrentWeek] = useState<Date>(() => getStartOfWeek(new Date()));
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [sharpenTheSawAreas, setSharpenTheSawAreas] = useState<SharpenTheSawArea[]>([]);
+  const [missionStatement, setMissionStatement] = useState<string>('');
+  // セッション内で訪れた週だけをキャッシュする(全データをlocalStorageへ丸ごと持つ旧方式は廃止)
+  const [weekDataCache, setWeekDataCache] = useState<Map<string, WeekData>>(new Map());
   const [isTourActive, setIsTourActive] = useState(false);
+
+  const draggedTaskRef = useRef<Task | null>(null);
+  const dashboardRootRef = useRef<HTMLDivElement>(null);
+
+  // mousemove/キー入力のたびに飛んでくる高頻度な更新をサーバー保存だけ間引くためのデバウンサー群。
+  // ローカルstateは各ハンドラ内で即時更新するので、体感速度は落ちない。
+  const scheduledTaskDebouncer = useRef(
+    new KeyedDebouncer<Partial<ScheduledTask>>((id, updates) => {
+      weekDataService.updateScheduledTask(id, updates).catch(handleSaveError);
+    }, DEBOUNCE_MS)
+  );
+  const dayNotesDebouncer = useRef(
+    new KeyedDebouncer<{ notes?: string }>((key, updates) => {
+      const [weekStart, dayStr] = key.split(':');
+      weekDataService.upsertDayNotes(weekStart, Number(dayStr), updates).catch(handleSaveError);
+    }, DEBOUNCE_MS + 100)
+  );
+  const weeklyNotesDebouncer = useRef(
+    new KeyedDebouncer<{ weeklyNotes: string }>((weekStart, updates) => {
+      weekDataService.updateWeeklyNotes(weekStart, updates.weeklyNotes).catch(handleSaveError);
+    }, DEBOUNCE_MS + 100)
+  );
+
+  const flushAllDebouncers = () => {
+    scheduledTaskDebouncer.current.flushAll();
+    dayNotesDebouncer.current.flushAll();
+    weeklyNotesDebouncer.current.flushAll();
+  };
+
+  // アンマウント時(別アカウントへの切り替え等)にも保留中の書き込みを取りこぼさない
+  useEffect(() => flushAllDebouncers, []);
+
+  function handleSaveError(error: unknown) {
+    console.error(error);
+    setSaveError('保存に失敗しました。通信環境をご確認のうえ、しばらくしてからもう一度お試しください。');
+  }
 
   // サインアップ直後の初回マウント時のみオンボーディングツアーを自動起動する
   useEffect(() => {
@@ -176,8 +142,41 @@ function Dashboard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const draggedTaskRef = useRef<Task | null>(null);
-  const dashboardRootRef = useRef<HTMLDivElement>(null);
+  // 初回マウント: 旧localStorageデータがあれば一度だけDBへ取り込んでから、DBの内容を読み込む
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setIsLoading(true);
+        setLoadError(null);
+        await migrateLegacyLocalStorageIfNeeded(storageKey);
+
+        const initialWeekKey = getWeekKey(currentWeek);
+        const [fetchedRoles, areas, mission, week] = await Promise.all([
+          roleService.fetchRoles(),
+          sharpenTheSawService.fetchSharpenTheSawAreas(),
+          missionStatementService.fetchMissionStatement(),
+          weekDataService.fetchWeekData(initialWeekKey),
+        ]);
+        if (cancelled) return;
+
+        setRoles(fetchedRoles);
+        setSharpenTheSawAreas(areas);
+        setMissionStatement(mission);
+        setWeekDataCache(new Map([[initialWeekKey, week]]));
+      } catch (error) {
+        if (cancelled) return;
+        console.error(error);
+        setLoadError('データの読み込みに失敗しました。ページを再読み込みしてください。');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
 
   const roleColorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -186,111 +185,131 @@ function Dashboard({
   }, [roles]);
 
   const weekKey = getWeekKey(currentWeek);
+  const currentWeekData = weekDataCache.get(weekKey) ?? blankWeekData(currentWeek);
 
-  const currentWeekData = useMemo<WeekData>(() => {
-    const existing = weekData.get(weekKey);
-    if (existing) return existing.temporaryTasks ? existing : { ...existing, temporaryTasks: [] };
-    return blankWeekData(currentWeek);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekData, weekKey]);
-
-  // 現在の週の WeekData がまだ存在しない場合は作成しておく
-  useEffect(() => {
-    setWeekData(prev => {
-      if (prev.has(weekKey)) return prev;
+  const updateCurrentWeekData = (updater: (data: WeekData) => WeekData) => {
+    setWeekDataCache(prev => {
+      const existing = prev.get(weekKey) ?? blankWeekData(currentWeek);
       const next = new Map(prev);
-      next.set(weekKey, blankWeekData(currentWeek));
-      return next;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekKey]);
-
-  // 自動保存 (Vue版で各メソッド末尾に書かれていた saveData() 呼び出しに相当)
-  useEffect(() => {
-    try {
-      const dataToSave = {
-        currentWeek: currentWeek.toISOString(),
-        roles,
-        sharpenTheSawAreas,
-        missionStatement,
-        isListMode,
-        weekData: Array.from(weekData.entries()).map(([key, value]) => [
-          key,
-          { ...value, weekStart: value.weekStart.toISOString() },
-        ]),
-      };
-      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-    } catch (error) {
-      console.warn('Failed to save data to localStorage:', error);
-    }
-  }, [storageKey, currentWeek, roles, sharpenTheSawAreas, missionStatement, isListMode, weekData]);
-
-  const updateWeekData = (key: string, weekStartForNew: Date, updater: (data: WeekData) => WeekData) => {
-    setWeekData(prev => {
-      const existing = prev.get(key) ?? blankWeekData(weekStartForNew);
-      const withDefaults: WeekData = { ...existing, temporaryTasks: existing.temporaryTasks ?? [] };
-      const updated = updater(withDefaults);
-      const next = new Map(prev);
-      next.set(key, updated);
+      next.set(weekKey, updater(existing));
       return next;
     });
   };
-  const updateCurrentWeekData = (updater: (data: WeekData) => WeekData) =>
-    updateWeekData(weekKey, currentWeek, updater);
 
   const changeWeek = (newWeek: Date) => {
-    // 週切り替え時に全Role.tasksからisPermanent: falseのタスクを除外
-    setRoles(prev => prev.map(role => ({ ...role, tasks: role.tasks.filter(task => task.isPermanent) })));
+    flushAllDebouncers();
     setCurrentWeek(newWeek);
+    const key = getWeekKey(newWeek);
+    if (weekDataCache.has(key)) return;
+    weekDataService
+      .fetchWeekData(key)
+      .then(data => setWeekDataCache(prev => (prev.has(key) ? prev : new Map(prev).set(key, data))))
+      .catch(handleSaveError);
   };
 
-  const addRole = (name: string) => {
-    setRoles(prev => [
-      ...prev,
-      { id: Date.now().toString(), name, tasks: [], isExpanded: false, color: ROLE_COLORS[prev.length % ROLE_COLORS.length] },
-    ]);
+  const addRole = async (name: string) => {
+    const tempId = `temp-${Date.now()}`;
+    const color = ROLE_COLORS[roles.length % ROLE_COLORS.length];
+    setRoles(prev => [...prev, { id: tempId, name, tasks: [], isExpanded: false, color }]);
+    try {
+      const created = await roleService.createRole(name, color, false);
+      setRoles(prev => prev.map(r => (r.id === tempId ? created : r)));
+    } catch (error) {
+      setRoles(prev => prev.filter(r => r.id !== tempId));
+      handleSaveError(error);
+    }
   };
 
   const deleteRole = (roleId: string) => {
+    const previousRoles = roles;
+    const previousWeekDataCache = weekDataCache;
     setRoles(prev => prev.filter(role => role.id !== roleId));
-    // Also remove any scheduled tasks for this role
-    setWeekData(prev => {
+    setWeekDataCache(prev => {
       const next = new Map<string, WeekData>();
       prev.forEach((wd, key) => {
-        next.set(key, { ...wd, scheduledTasks: wd.scheduledTasks.filter(task => task.roleId !== roleId) });
+        next.set(key, {
+          ...wd,
+          scheduledTasks: wd.scheduledTasks.filter(task => task.roleId !== roleId),
+          // DB側はロール削除でこのロール配下のtasks(一時タスク含む)もカスケード削除されるため、
+          // 既に取得済みの週キャッシュからも一時タスクを合わせて消しておく
+          temporaryTasks: (wd.temporaryTasks ?? []).filter(task => task.roleId !== roleId),
+        });
       });
       return next;
     });
+    if (isTempId(roleId)) return;
+    roleService.deleteRole(roleId).catch(error => {
+      // 削除に失敗したのに画面から消えたままだとDBとの不整合に気付けないため元に戻す
+      setRoles(previousRoles);
+      setWeekDataCache(previousWeekDataCache);
+      handleSaveError(error);
+    });
   };
 
-  const addTask = (roleId: string, taskTitle: string, isPermanent: boolean) => {
-    const newTask: Task = { id: Date.now().toString(), title: taskTitle, roleId, isPermanent };
+  const addTask = async (roleId: string, taskTitle: string, isPermanent: boolean) => {
+    const tempId = `temp-${Date.now()}`;
+    const newTask: Task = { id: tempId, title: taskTitle, roleId, isPermanent };
     if (isPermanent) {
       setRoles(prev => prev.map(r => (r.id === roleId ? { ...r, tasks: [...r.tasks, newTask] } : r)));
     } else {
-      // 一時タスクは今週のWeekDataにTask型で追加
       updateCurrentWeekData(wd => ({ ...wd, temporaryTasks: [...(wd.temporaryTasks ?? []), newTask] }));
+    }
+
+    try {
+      const created = await taskService.createTask({
+        roleId,
+        title: taskTitle,
+        isPermanent,
+        weekStart: isPermanent ? undefined : weekKey,
+      });
+      if (isPermanent) {
+        setRoles(prev => prev.map(r => (
+          r.id === roleId ? { ...r, tasks: r.tasks.map(t => (t.id === tempId ? created : t)) } : r
+        )));
+      } else {
+        updateCurrentWeekData(wd => ({
+          ...wd,
+          temporaryTasks: (wd.temporaryTasks ?? []).map(t => (t.id === tempId ? created : t)),
+        }));
+      }
+    } catch (error) {
+      if (isPermanent) {
+        setRoles(prev => prev.map(r => (r.id === roleId ? { ...r, tasks: r.tasks.filter(t => t.id !== tempId) } : r)));
+      } else {
+        updateCurrentWeekData(wd => ({
+          ...wd,
+          temporaryTasks: (wd.temporaryTasks ?? []).filter(t => t.id !== tempId),
+        }));
+      }
+      handleSaveError(error);
     }
   };
 
   const toggleRole = (roleId: string) => {
-    setRoles(prev => prev.map(role => {
-      if (role.id !== roleId) return role;
-      const isExpanded = !role.isExpanded;
+    const role = roles.find(r => r.id === roleId);
+    if (!role) return;
+    const nextExpanded = !role.isExpanded;
+    setRoles(prev => prev.map(r => {
+      if (r.id !== roleId) return r;
       // 役割を閉じる際にshowAddTaskをリセット
-      return isExpanded ? { ...role, isExpanded } : { ...role, isExpanded, showAddTask: false };
+      return nextExpanded ? { ...r, isExpanded: nextExpanded } : { ...r, isExpanded: nextExpanded, showAddTask: false };
     }));
+    if (isTempId(roleId)) return;
+    roleService.updateRoleExpanded(roleId, nextExpanded).catch(handleSaveError);
   };
 
   const handleTaskDragStart = (task: Task) => {
     draggedTaskRef.current = task;
   };
 
-  const handleTaskDrop = (day: number, startTime: string) => {
+  const handleTaskDrop = async (day: number, startTime: string) => {
     const draggedTask = draggedTaskRef.current;
     if (!draggedTask) return;
-    const scheduledTask: ScheduledTask = {
-      id: Date.now().toString(),
+    draggedTaskRef.current = null;
+
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: ScheduledTask = {
+      id: tempId,
       taskId: draggedTask.id,
       day,
       startTime,
@@ -298,8 +317,26 @@ function Dashboard({
       title: draggedTask.title,
       roleId: draggedTask.roleId,
     };
-    updateCurrentWeekData(wd => ({ ...wd, scheduledTasks: [...wd.scheduledTasks, scheduledTask] }));
-    draggedTaskRef.current = null;
+    updateCurrentWeekData(wd => ({ ...wd, scheduledTasks: [...wd.scheduledTasks, optimistic] }));
+
+    try {
+      const created = await weekDataService.createScheduledTask(weekKey, {
+        taskId: draggedTask.id,
+        day,
+        startTime,
+        duration: 60,
+        title: draggedTask.title,
+        roleId: draggedTask.roleId,
+      });
+      updateCurrentWeekData(wd => ({
+        ...wd,
+        scheduledTasks: wd.scheduledTasks.map(t => (t.id === tempId ? created : t)),
+      }));
+      scheduledTaskDebouncer.current.rekey(tempId, created.id);
+    } catch (error) {
+      updateCurrentWeekData(wd => ({ ...wd, scheduledTasks: wd.scheduledTasks.filter(t => t.id !== tempId) }));
+      handleSaveError(error);
+    }
   };
 
   const updateScheduledTask = (taskId: string, updates: Partial<ScheduledTask>) => {
@@ -307,6 +344,9 @@ function Dashboard({
       ...wd,
       scheduledTasks: wd.scheduledTasks.map(t => (t.id === taskId ? { ...t, ...updates } : t)),
     }));
+    // サーバー採番ID反映前の一瞬はスキップし、created応答の反映後に改めて保存される
+    if (isTempId(taskId)) return;
+    scheduledTaskDebouncer.current.schedule(taskId, updates);
   };
 
   const updateDayNotes = (day: number, notes: string) => {
@@ -314,6 +354,7 @@ function Dashboard({
       ...wd,
       dayNotes: wd.dayNotes.map(dn => (dn.day === day ? { ...dn, notes } : dn)),
     }));
+    dayNotesDebouncer.current.schedule(`${weekKey}:${day}`, { notes });
   };
 
   const updateSleepTime = (day: number, sleepStart: string, sleepEnd: string) => {
@@ -321,26 +362,42 @@ function Dashboard({
       ...wd,
       dayNotes: wd.dayNotes.map(dn => (dn.day === day ? { ...dn, sleepStart, sleepEnd } : dn)),
     }));
+    weekDataService.upsertDayNotes(weekKey, day, { sleepStart, sleepEnd }).catch(handleSaveError);
   };
 
   const updateWeeklyNotes = (notes: string) => {
     updateCurrentWeekData(wd => ({ ...wd, weeklyNotes: notes }));
+    weeklyNotesDebouncer.current.schedule(weekKey, { weeklyNotes: notes });
   };
 
-  const updateSharpenTheSawAreas = (areas: SharpenTheSawArea[]) => {
+  const updateSharpenTheSawAreas = async (areas: SharpenTheSawArea[]) => {
+    const previousAreas = sharpenTheSawAreas;
     setSharpenTheSawAreas(areas);
+    try {
+      // サーバー側で新規タスクに採番された本物のIDへ置き換える(次回保存時の重複作成を防ぐため)
+      const saved = await sharpenTheSawService.updateSharpenTheSawAreas(areas);
+      setSharpenTheSawAreas(saved);
+    } catch (error) {
+      setSharpenTheSawAreas(previousAreas);
+      handleSaveError(error);
+    }
   };
 
   const updateMissionStatement = (text: string) => {
     setMissionStatement(text);
+    missionStatementService.updateMissionStatement(text).catch(handleSaveError);
   };
 
   const updateRoleName = (roleId: string, newName: string) => {
     setRoles(prev => prev.map(role => (role.id === roleId ? { ...role, name: newName } : role)));
+    if (isTempId(roleId)) return;
+    roleService.updateRoleName(roleId, newName).catch(handleSaveError);
   };
 
   const updateRoleColor = (roleId: string, color: string) => {
     setRoles(prev => prev.map(role => (role.id === roleId ? { ...role, color } : role)));
+    if (isTempId(roleId)) return;
+    roleService.updateRoleColor(roleId, color).catch(handleSaveError);
   };
 
   const updateTaskTitle = (roleId: string, taskId: string, newTitle: string) => {
@@ -350,6 +407,9 @@ function Dashboard({
       setRoles(prev => prev.map(r => (
         r.id === roleId ? { ...r, tasks: r.tasks.map(t => (t.id === taskId ? { ...t, title: newTitle } : t)) } : r
       )));
+      if (!isTempId(taskId)) {
+        taskService.updateTask(taskId, { title: newTitle, isPermanent: true }).catch(handleSaveError);
+      }
       return;
     }
     const tempTask = currentWeekData.temporaryTasks?.find(t => t.id === taskId);
@@ -358,6 +418,9 @@ function Dashboard({
         ...wd,
         temporaryTasks: (wd.temporaryTasks ?? []).map(t => (t.id === taskId ? { ...t, title: newTitle } : t)),
       }));
+      if (!isTempId(taskId)) {
+        taskService.updateTask(taskId, { title: newTitle, isPermanent: false, weekStart: weekKey }).catch(handleSaveError);
+      }
     }
   };
 
@@ -372,9 +435,24 @@ function Dashboard({
         return { ...wd, temporaryTasks: [...otherTemp, ...tempForRole] };
       });
     }
+    // 仮ID(サーバー未反映)の項目を除いても、sortOrderは並び替え後の実際の位置(index)を保つ
+    // ため、必ずmapで全項目のindexを確定させてからfilterする
+    const items = reorderedTasks
+      .map((t, index) => ({ id: t.id, sortOrder: index }))
+      .filter(item => !isTempId(item.id));
+    if (items.length > 0) taskService.reorderTasks(items).catch(handleSaveError);
   };
 
   const toggleTaskPermanent = (roleId: string, taskId: string, currentlyPermanent: boolean) => {
+    const previousRoles = roles;
+    const previousWeekDataCache = weekDataCache;
+    const rollback = (error: unknown) => {
+      // 永続/一時をまたぐ移動なので、失敗時に中途半端な状態(両方に無い/両方にある)を残さず戻す
+      setRoles(previousRoles);
+      setWeekDataCache(previousWeekDataCache);
+      handleSaveError(error);
+    };
+
     if (currentlyPermanent) {
       const role = roles.find(r => r.id === roleId);
       const task = role?.tasks.find(t => t.id === taskId);
@@ -382,6 +460,9 @@ function Dashboard({
       const movedTask: Task = { ...task, isPermanent: false };
       setRoles(prev => prev.map(r => (r.id === roleId ? { ...r, tasks: r.tasks.filter(t => t.id !== taskId) } : r)));
       updateCurrentWeekData(wd => ({ ...wd, temporaryTasks: [...(wd.temporaryTasks ?? []), movedTask] }));
+      if (!isTempId(taskId)) {
+        taskService.updateTask(taskId, { title: task.title, isPermanent: false, weekStart: weekKey }).catch(rollback);
+      }
     } else {
       const task = currentWeekData.temporaryTasks?.find(t => t.id === taskId);
       if (!task) return;
@@ -391,22 +472,48 @@ function Dashboard({
         temporaryTasks: (wd.temporaryTasks ?? []).filter(t => t.id !== taskId),
       }));
       setRoles(prev => prev.map(r => (r.id === roleId ? { ...r, tasks: [...r.tasks, movedTask] } : r)));
+      if (!isTempId(taskId)) {
+        taskService.updateTask(taskId, { title: task.title, isPermanent: true }).catch(rollback);
+      }
     }
   };
 
-  const toggleListMode = () => setIsListMode(prev => !prev);
+  const toggleListMode = () => {
+    setIsListMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem(listModeStorageKey, String(next));
+      } catch (error) {
+        console.warn('Failed to persist list mode preference:', error);
+      }
+      return next;
+    });
+  };
 
   const reorderRoles = (newRoles: Role[]) => {
-    // newRoles は LeftSidebar の roleList 由来で merged tasks（permanent + temporary）を含む。
-    // roles（permanent タスクのみ）を元に順序だけ入れ替えることで二重追加を防ぐ。
+    // newRolesはLeftSidebarのroleList由来でmerged tasks(permanent + temporary)を含む。
+    // roles(permanentタスクのみ)を元に順序だけ入れ替えることで二重追加を防ぐ。
     setRoles(prev => newRoles.map(r => prev.find(existing => existing.id === r.id) ?? r));
+    const items = newRoles
+      .map((r, index) => ({ id: r.id, sortOrder: index }))
+      .filter(item => !isTempId(item.id));
+    if (items.length > 0) roleService.reorderRoles(items).catch(handleSaveError);
   };
 
   const handleTaskDeleted = (taskId: string) => {
+    const previousWeekDataCache = weekDataCache;
     updateCurrentWeekData(wd => ({ ...wd, scheduledTasks: wd.scheduledTasks.filter(t => t.id !== taskId) }));
+    scheduledTaskDebouncer.current.cancel(taskId);
+    if (isTempId(taskId)) return;
+    weekDataService.deleteScheduledTask(taskId).catch(error => {
+      setWeekDataCache(previousWeekDataCache);
+      handleSaveError(error);
+    });
   };
 
   const deleteTask = (roleId: string, taskId: string) => {
+    const previousRoles = roles;
+    const previousWeekDataCache = weekDataCache;
     const role = roles.find(r => r.id === roleId);
     const foundInRole = role?.tasks.some(t => t.id === taskId);
     if (foundInRole) {
@@ -417,17 +524,49 @@ function Dashboard({
         temporaryTasks: (wd.temporaryTasks ?? []).filter(t => t.id !== taskId),
       }));
     }
+    // このタスクを参照するスケジュール済みタスクも(DB側はFKカスケード削除される想定なので)ローカルから消す
+    setWeekDataCache(prev => {
+      const next = new Map<string, WeekData>();
+      prev.forEach((wd, key) => {
+        next.set(key, { ...wd, scheduledTasks: wd.scheduledTasks.filter(t => t.taskId !== taskId) });
+      });
+      return next;
+    });
+    if (isTempId(taskId)) return;
+    taskService.deleteTask(taskId).catch(error => {
+      setRoles(previousRoles);
+      setWeekDataCache(previousWeekDataCache);
+      handleSaveError(error);
+    });
   };
 
-  const addCopiedTask = (task: ScheduledTask) => {
-    updateCurrentWeekData(wd => ({ ...wd, scheduledTasks: [...wd.scheduledTasks, task] }));
+  const addCopiedTask = async (task: ScheduledTask) => {
+    const tempId = `temp-${Date.now()}`;
+    updateCurrentWeekData(wd => ({ ...wd, scheduledTasks: [...wd.scheduledTasks, { ...task, id: tempId }] }));
+    try {
+      const created = await weekDataService.createScheduledTask(weekKey, {
+        taskId: task.taskId,
+        day: task.day,
+        startTime: task.startTime,
+        duration: task.duration,
+        title: task.title,
+        roleId: task.roleId,
+      });
+      updateCurrentWeekData(wd => ({
+        ...wd,
+        scheduledTasks: wd.scheduledTasks.map(t => (t.id === tempId ? created : t)),
+      }));
+    } catch (error) {
+      updateCurrentWeekData(wd => ({ ...wd, scheduledTasks: wd.scheduledTasks.filter(t => t.id !== tempId) }));
+      handleSaveError(error);
+    }
   };
 
   const downloadPdf = async () => {
     const root = dashboardRootRef.current;
     if (!root) return;
 
-    // html2canvas/jspdf はPDFダウンロード時にしか使わない重いライブラリ(gzip後で数百KB)なので、
+    // html2canvas/jspdfはPDFダウンロード時にしか使わない重いライブラリ(gzip後で数百KB)なので、
     // 初回バンドルに含めず実際に押されたときだけ動的importする
     const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
       import('html2canvas'),
@@ -507,8 +646,28 @@ function Dashboard({
     }
   };
 
+  const handleLogout = () => {
+    flushAllDebouncers();
+    onLogout?.();
+  };
+
+  if (isLoading) {
+    return <div className={styles.loadingScreen}>読み込み中...</div>;
+  }
+
+  if (loadError) {
+    return <div className={styles.loadingScreen}>{loadError}</div>;
+  }
+
   return (
     <div className={styles.dashboard} ref={dashboardRootRef}>
+      {saveError && (
+        <div className={styles.saveErrorBanner}>
+          <span>{saveError}</span>
+          <button className={styles.saveErrorDismiss} onClick={() => setSaveError(null)}>×</button>
+        </div>
+      )}
+
       <LeftSidebar
         roles={roles}
         sharpenTheSawAreas={sharpenTheSawAreas}
@@ -527,7 +686,7 @@ function Dashboard({
         onToggleTaskPermanent={toggleTaskPermanent}
         onReorderRoles={reorderRoles}
         userLabel={userLabel}
-        onLogout={onLogout}
+        onLogout={handleLogout}
         onStartTour={() => setIsTourActive(true)}
       />
 

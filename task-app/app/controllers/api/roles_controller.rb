@@ -19,20 +19,29 @@ module Api
 
         role.update!(role_name: role_name, color: params[:color])
       else
-        current_user.roles.create!(role_name: role_name, color: params[:color])
+        attrs = { role_name: role_name, color: params[:color] }
+        attrs[:is_expanded] = params[:isExpanded] unless params[:isExpanded].nil?
+        role = current_user.roles.create!(attrs)
       end
 
-      head :created
+      # 新規作成時、フロントがクライアント側の仮IDを本物のroleIdへ差し替えられるようボディを返す
+      render json: role_json(role), status: :created
     end
 
     def update
       role = current_user.roles.find_by(role_id: params[:id])
       raise ActiveRecord::RecordNotFound, "Role not found: #{params[:id]}" unless role
 
-      role_name = params[:roleName]
-      return render_role_name_blank if role_name.blank?
+      return render_bad_request if [:roleName, :isExpanded, :color].none? { |key| params.key?(key) }
 
-      attrs = { role_name: role_name }
+      attrs = {}
+      # roleNameは色・isExpandedだけの部分更新(色ピッカー選択・折りたたみトグル単体のAPI呼び出し)
+      # でも呼ばれるため、キーが送られてきたときだけ必須チェック・更新する
+      if params.key?(:roleName)
+        return render_role_name_blank if params[:roleName].blank?
+
+        attrs[:role_name] = params[:roleName]
+      end
       attrs[:is_expanded] = params[:isExpanded] unless params[:isExpanded].nil?
       attrs[:color] = params[:color] unless params[:color].nil?
       role.update!(attrs)
@@ -61,13 +70,20 @@ module Api
       render json: { error: "roleName must not be blank" }, status: :bad_request
     end
 
+    def render_bad_request
+      render json: { error: "roleName, isExpanded or color is required" }, status: :bad_request
+    end
+
     def role_json(role)
       {
         roleId: role.role_id,
         roleName: role.role_name,
         isExpanded: role.is_expanded,
         color: role.color,
-        tasks: role.tasks.map { |task| task_json(task) }
+        # 一時タスクも同じtasksテーブルに入るが、role.tasksには永続タスクのみ含める。
+        # (Rubyでのselectではなく)SQL側でwhereして絞ることで、一時タスクが週を重ねて
+        # 増えても毎回それらを取得しなくて済むようにする
+        tasks: role.tasks.where(is_permanent: true).map { |task| task_json(task) }
       }
     end
 
