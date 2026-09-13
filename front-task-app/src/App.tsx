@@ -1,6 +1,7 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Dashboard from './components/Dashboard'
 import AuthPage from './components/AuthPage'
+import { isLocalMode } from './services/persistenceMode'
 import styles from './App.module.css'
 import './index.css'
 
@@ -13,6 +14,17 @@ function AppContent() {
 
   if (!user) {
     return <AuthPage />
+  }
+
+  // ローカル保存モードではアカウントの概念が無いため、storageKey/userLabel/onLogoutを渡さない
+  // (LeftSidebar最下部のアカウントバーは userLabel と onLogout が両方揃った時だけ表示される)
+  if (isLocalMode) {
+    return (
+      <Dashboard
+        startOnboarding={justSignedUp}
+        onOnboardingStarted={consumeJustSignedUp}
+      />
+    )
   }
 
   return (

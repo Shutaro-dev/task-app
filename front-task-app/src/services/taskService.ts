@@ -1,6 +1,8 @@
 import axios from 'axios'
 import type { Task } from '../types'
 import { API_ORIGIN } from './apiBase'
+import { isLocalMode } from './persistenceMode'
+import * as localStore from './localStore'
 
 const BASE = `${API_ORIGIN}/api/tasks`
 
@@ -24,6 +26,7 @@ export interface CreateTaskInput {
 }
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
+  if (isLocalMode) return localStore.createTask(input)
   const { data } = await axios.post<TaskResponse>(BASE, {
     roleId: input.roleId,
     title: input.title,
@@ -34,6 +37,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
 }
 
 export async function deleteTask(id: string): Promise<void> {
+  if (isLocalMode) return localStore.deleteTask(id)
   await axios.delete(`${BASE}/${id}`)
 }
 
@@ -42,10 +46,12 @@ export async function updateTask(
   id: string,
   payload: { title: string; isPermanent: boolean; weekStart?: string }
 ): Promise<Task> {
+  if (isLocalMode) return localStore.updateTask(id, payload)
   const { data } = await axios.put<TaskResponse>(`${BASE}/${id}`, payload)
   return mapTask(data)
 }
 
 export async function reorderTasks(items: { id: string; sortOrder: number }[]): Promise<void> {
+  if (isLocalMode) return localStore.reorderTasks(items)
   await axios.put(`${BASE}/reorder`, items)
 }

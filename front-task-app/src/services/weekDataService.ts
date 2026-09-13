@@ -1,6 +1,8 @@
 import axios from 'axios'
 import type { DayNotes, ScheduledTask, Task, WeekData } from '../types'
 import { API_ORIGIN } from './apiBase'
+import { isLocalMode } from './persistenceMode'
+import * as localStore from './localStore'
 
 const BASE = `${API_ORIGIN}/api/week_data`
 
@@ -74,11 +76,13 @@ function mapWeekData(json: WeekDataResponse): WeekData {
 }
 
 export async function fetchWeekData(weekStart: string): Promise<WeekData> {
+  if (isLocalMode) return localStore.getWeekData(weekStart)
   const { data } = await axios.get<WeekDataResponse>(`${BASE}/${weekStart}`)
   return mapWeekData(data)
 }
 
 export async function updateWeeklyNotes(weekStart: string, notes: string): Promise<void> {
+  if (isLocalMode) return localStore.updateWeeklyNotes(weekStart, notes)
   await axios.put(`${BASE}/${weekStart}`, { weeklyNotes: notes })
 }
 
@@ -95,6 +99,7 @@ export async function createScheduledTask(
   weekStart: string,
   input: CreateScheduledTaskInput
 ): Promise<ScheduledTask> {
+  if (isLocalMode) return localStore.createScheduledTask(weekStart, input)
   const { data } = await axios.post<ScheduledTaskResponse>(`${BASE}/${weekStart}/scheduled_tasks`, input)
   return mapScheduledTask(data)
 }
@@ -103,10 +108,12 @@ export async function updateScheduledTask(
   id: string,
   updates: Partial<Pick<ScheduledTask, 'day' | 'startTime' | 'duration' | 'title' | 'completed'>>
 ): Promise<void> {
+  if (isLocalMode) return localStore.updateScheduledTask(id, updates)
   await axios.put(`${API_ORIGIN}/api/scheduled_tasks/${id}`, updates)
 }
 
 export async function deleteScheduledTask(id: string): Promise<void> {
+  if (isLocalMode) return localStore.deleteScheduledTask(id)
   await axios.delete(`${API_ORIGIN}/api/scheduled_tasks/${id}`)
 }
 
@@ -115,5 +122,6 @@ export async function upsertDayNotes(
   day: number,
   updates: Partial<Pick<DayNotes, 'notes' | 'sleepStart' | 'sleepEnd'>>
 ): Promise<void> {
+  if (isLocalMode) return localStore.upsertDayNotes(weekStart, day, updates)
   await axios.put(`${BASE}/${weekStart}/day_notes/${day}`, updates)
 }

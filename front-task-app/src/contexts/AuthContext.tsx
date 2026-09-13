@@ -2,6 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import type { ReactNode } from 'react';
 import type { User } from '../types';
 import * as authService from '../services/authService';
+import { isLocalMode } from '../services/persistenceMode';
+
+// ローカル保存モードではログイン概念自体が無いため、常にこの固定ユーザーでログイン済み扱いにする
+const LOCAL_USER: User = { id: 0, email: 'local@device', name: 'ローカル保存' };
 
 interface AuthContextValue {
   user: User | null;
@@ -18,11 +22,12 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(isLocalMode ? LOCAL_USER : null);
+  const [isLoading, setIsLoading] = useState(!isLocalMode);
   const [justSignedUp, setJustSignedUp] = useState(false);
 
   useEffect(() => {
+    if (isLocalMode) return; // 認証をバイパスしているため、APIへのセッション確認は行わない
     let cancelled = false;
     authService.fetchCurrentUser()
       .then(currentUser => { if (!cancelled) setUser(currentUser); })
@@ -31,6 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, []);
 
+  // ローカル保存モードではAuthPage自体を表示しないため、以下の3つが実際に呼ばれることは無い
+  // (APIへ接続を戻したときにそのまま機能するよう、実装は変更せず残してある)
   const login = useCallback(async (email: string, password: string) => {
     const loggedInUser = await authService.login({ email, password });
     setUser(loggedInUser);
